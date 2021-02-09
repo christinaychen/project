@@ -1,0 +1,27 @@
+---
+title: "Data Exploration"
+author: "Christina Chen"
+date: "2/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# readLines("./district-dropout-completion.dat", 
+#           n=1)
+# 
+# district_dropout <- read.table("./district-dropout-completion.dat", 
+#            header=F, skip=0, sep="\t")
+
+x = read.csv("els_02_12_byf1sch_v1_0.csv")
+student_data = read.csv("els_02_12_byf3pststu_v1_0.csv")
+
+```
+<!-- education longitudinal study -->
+<!-- https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6 -->
+
+<!-- high school longitudinal study - HSLS -->
+<!-- https://nces.ed.gov/OnlineCodebook/Session/Codebook/45976474-fead-49a6-856f-70e51afe428d -->

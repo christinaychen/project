@@ -1,0 +1,94 @@
+---
+title: "Project Proposal"
+author: "Christina Chen"
+date: "2/8/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(dplyr)
+library(ggplot2)
+student_data = read.csv("els_02_12_byf3pststu_v1_0.csv")
+```
+
+## Introduction
+### Context
+Government spending on US education has been a long standing debate. In 1966, James S. Coleman conducted a survey for the federal government to address a section in the Civil Rights Act of 1964 "concerning the lack of availability of equal educational opportunities for individuals by reason of race, color, religion, or national origin." After collecting data on 650,000 students and teachers, he wrote a 700-page report stating that school matters less than family in influencing student outcome. Many took this as a sign that additional spending on education would make little difference. However, he also found evidence of education inequality between rich and poor students. It seems that if the money is spent in the right way, for example, in bridging the gap between school quality, extra spending does make a difference.
+
+### Literature
+A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds. Another study "School Finance Reform and the Distribution of Student Achievement" draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that money matters as well, leading to improvement in student achievement (measured by test scores) in low income districts.
+
+### Motivations and Research Questions
+Personal experience in the public school system motivates me to investigate this question. Having experienced a multitude of public schools, a magnet school and now a private college, I'm interested in understanding factors that may affect student success. The predictors I will investigate fall under the categories of familial/economical, to see if there is credit to Coleman's claims and to identify issues with socioeconomic disparity; and educational, to analyze the effects of school finances. For the educational category, I won't be looking directly at school expenditure and revenue, but rather at variables that could be correlated with expenditure, such as teacher salary, access to technology, access to counseling, etc. Since public school revenue is related to local taxes, I'll also be looking at socioeconomic factors on the school level. My measurement for student success will not only be through test scores, but also through enrollment in further education and income after entering the work force.
+
+### Hypothesis
+I will first separate models between the two predictor categories to see if there is a large discrepancy between familial and educational factors in predicting student success. Then, I will create a model with both categories, noting that previous studies have seen increased benefit from school spending especially for those from low socioeconomic backgrounds. If time allows, I'll investigate any relationships between the measures of student success, such as using test scores to predict income, motivated by controversy over the use of test scores to measure aptitude.
+
+Potential predictors include:
+
+#### Familial
+- race
+- family composition
+- parents' highest level of education
+- parents' English fluency
+- socioeconomic status
+- how far in school parents wants student to go
+- has a computer at home
+- has own room
+- has Internet access
+
+#### Educational (for the school the student attends)
+- school type (private/public)
+- dropout prevention program offered
+- programs for pregnant girls/teenage mothers offered
+- individual/family psychological counseling offered
+- school-sponsored community service offered
+- vocational counseling/services/programs offered
+- learning hindered by poor condition of buildings, poor heating/air/light, poor science labs, poor fine arts facilities, poor lack of space, library, lack of texts/supplies, too few computers, lack of multi-media, lack of discipline/safety, poor voc/tech equipment/facilities
+- teacher access to technology
+- highest salary paid to full-time teachers
+- % full-time teachers that are certified
+- % full-time teachers that teach out of field
+- percent of 10th graders with free lunch
+
+#### Measures of Success
+- standardized test quartile
+- employment income 7 years after graduation (2011)
+- highest level of education earned 8 years after graduation (2012)
+
+## Data
+The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16000 observations on the student level.
+
+```{r}
+# STU_ID
+# data_cleaned = student_data
+# data_cleaned <- data_cleaned %>% mutate(
+#   race = case_when(
+#     F1RACE == 1 ~ "Amer. Indian/Alaska Native",
+#     F1RACE ==2 ~ "Asian, Hawaii/Pac. Islander",
+#     F1RACE ==3 ~ "Black",
+#     F1RACE ==4 | F1RACE ==5 ~ "Hispanic",
+#     F1RACE ==6 ~ "Mixed",
+#     F1RACE ==7 ~ "White"
+#   )
+# )
+# 
+# data_cleaned %>%
+#   ggplot() +
+#   geom_bar(aes(x=race))
+```
+
+
+## Sources
+<https://www.npr.org/sections/ed/2016/04/25/468157856/can-more-money-fix-americas-schools>
+
+<https://equitablegrowth.org/can-school-finance-reforms-improve-student-achievement/>
+
+<https://www.nber.org/papers/w20847>
+
+<https://fordhaminstitute.org/national/commentary/education-longitudinal-study-2002>
+
+https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/
+
