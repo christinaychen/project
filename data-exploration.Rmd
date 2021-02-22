@@ -1,27 +1,112 @@
 ---
 title: "Data Exploration"
 author: "Christina Chen"
-date: "2/8/2021"
+date: "2/22/2021"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(ggplot2)
+
+# data file too large to push to git - split into two halfs in split_data.R
+student_data1 = read.csv("els_student_first_half.csv")
+student_data2 = read.csv("els_student_second_half.csv")
+els = rbind(student_data1, student_data2)
 ```
+
+# Measures of Success
+- standardized test quartile: BYTXCQU 
+- standardized test composite: BYTXCSTD
+```{r}
+# hist(student_data$BYTXCQU)
+hist(els$BYTXCSTD)
+# some scores below 0 -> should remove
+```
+
+- employment income 7 years after graduation (2011): F3ERN2011
+```{r}
+sum(els$F3ERN2011==0)
+hist(log(els$F3ERN2011))
+```
+
+- highest level of education earned 8 years after graduation (2012): F3ATTAINMENT
+```{r}
+ggplot(data=els) +
+  geom_bar(aes(x=F3ATTAINMENT))
+```
+
+- HS GPA: F1RGPP2
+
+- SAT: TXEESATC
+
+- ACT: TXEEACTC
+
+# Familial
+- race: BYRACE
+```{r}
+
+```
+
+- family composition: BYFCOMP
+- parents' highest level of education: BYPARED
+- parents' English fluency
+- socioeconomic status: BYSES1, BYSES1QU, BYSES2, BYSES2QU
+- family income: BYINCOME
+- how far in school parents wants student to go: BYPARASP
+- has a computer at home: BYS84C
+- has own room: BYS84I
+- has Internet access: BYS84D
+- parents expect success in school: BYS27I
+
+# Educational (for the school the student attends)
+- school type (private/public): BYSCTRL
+- school urbanicity: BYURBAN
+- dropout prevention program offered: F1A23
+- programs for pregnant girls/teenage mothers offered: F1A21F
+- individual/family psychological counseling offered: F1A21E
+- school-sponsored community service offered: F1A21D
+- vocational counseling/services/programs offered: F1A21A
+- learning hindered by poor condition of buildings, poor heating/air/light, poor science labs, poor fine arts facilities, poor lack of space, library, lack of texts/supplies, too few computers, lack of multi-media, lack of discipline/safety, poor voc/tech equipment/facilities
+
+BYA50A         14277-14279   Learning hindered by poor condition of buildings
+BYA50B         14279-14281   Learning hindered by poor heating/air/light
+BYA50C         14281-14283   Learning hindered by poor science labs
+BYA50D         14283-14285   Learning hindered by poor fine arts facilities
+BYA50E         14285-14287   Learning hindered by lack of space
+BYA50F         14287-14289   Learning hindered by poor library
+BYA50G         14289-14291   Learning hindered by lack of texts/supplies
+BYA50H         14291-14293   Learning hindered by too few computers
+BYA50I         14293-14295   Learning hindered by lack of multi-media
+BYA50J         14295-14297   Learning hindered by lack of discipline/safety
+BYA50K         14297-14299   Learning hindered by poor voc/tech equipment/facilities
+
+
+- teacher access to technology
+
+BYA41A         14131-14133   Teachers have access to cable TV
+BYA41B         14133-14135   Teachers have access to closed-circuit TV
+BYA41C         14135-14137   Teachers have access to videodisc player/VCR/DVD
+BYA41D         14137-14139   Teachers have access to video camera
+BYA41E         14139-14141   Teachers have access to video production studio
+BYA41F         14141-14143   Teachers have access to satellite TV hook-up
+BYA41G         14143-14145   Teachers have access to videoconferencing equipment
+BYA41H         14145-14147   Teachers have access to digital camera
+BYA41I         14147-14149   Teachers have access to scanner
+BYA41J         14149-14151   Teachers have access to LCD panel
+BYA41K         14151-14153   Teachers have access to laptop computer
+BYA41L         14153-14155   Teachers have access to Internet
+BYA41M         14155-14157   Teachers have access to computer printer
+
+- highest salary paid to full-time teachers: BYA26B
+- % full-time teachers that are certified: BYA24A
+- % full-time teachers that teach out of field: BYA25A
+- percent of 10th graders with free lunch: BY10FLP
+
+
 
 ```{r}
-# readLines("./district-dropout-completion.dat", 
-#           n=1)
-# 
-# district_dropout <- read.table("./district-dropout-completion.dat", 
-#            header=F, skip=0, sep="\t")
-
-x = read.csv("els_02_12_byf1sch_v1_0.csv")
-student_data = read.csv("els_02_12_byf3pststu_v1_0.csv")
 
 ```
-<!-- education longitudinal study -->
-<!-- https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6 -->
 
-<!-- high school longitudinal study - HSLS -->
-<!-- https://nces.ed.gov/OnlineCodebook/Session/Codebook/45976474-fead-49a6-856f-70e51afe428d -->

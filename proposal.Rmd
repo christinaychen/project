@@ -90,5 +90,5 @@ The data come from [National Center for Education Statistics (NCES)](https://nce
 
 <https://fordhaminstitute.org/national/commentary/education-longitudinal-study-2002>
 
-https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/
+<https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/>
 

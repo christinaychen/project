@@ -1,0 +1,6 @@
+student_data = read.csv("els_02_12_byf3pststu_v1_0.csv")
+n = length(student_data[,1])
+first_chunk <- sample(student_data[1:8098,])
+second_chunk <- sample(student_data[8099:16197,])
+write.csv(first_chunk,file="els_student_first_half.csv",quote=F,row.names=F,col.names=T)
+write.csv(second_chunk,file="els_student_second_half.csv",quote=F,row.names=F,col.names=T)
