@@ -14,6 +14,7 @@ library(ggplot2)
 student_data1 = read.csv("els_student_first_half.csv")
 student_data2 = read.csv("els_student_second_half.csv")
 els = rbind(student_data1, student_data2)
+els_original=els
 ```
 
 # Measures of Success
@@ -32,30 +33,328 @@ hist(log(els$F3ERN2011))
 ```
 
 - highest level of education earned 8 years after graduation (2012): F3ATTAINMENT
+F3ATTAINMENT
+   1 = "No HS credential, no PS attendance"
+   2 = "HS credential, no PS attendance"
+   3 = "Some PS attendance, no PS credential"
+   4 = "Undergraduate certificate"
+   5 = "Associates degree"
+   6 = "Bachelors degree"
+   7 = "Post-Baccalaureate certificate"
+   8 = "Master's degree/Post-Master's certificate"
+   10 = "Doctoral degree"
+   -4 = "Nonrespondent"
+   -8 = "Survey component legitimate skip/NA"
 ```{r}
-ggplot(data=els) +
-  geom_bar(aes(x=F3ATTAINMENT))
+els <- els %>% mutate(
+  ED_ATNMT = case_when(
+    F3ATTAINMENT == 1 ~ "No GED",
+    F3ATTAINMENT == 2 ~ "GED",
+    F3ATTAINMENT ==3 ~ "PS Attendance",
+    F3ATTAINMENT ==4 ~ "Undergrad Cert.",
+    F3ATTAINMENT ==5 ~ "Associates",
+    F3ATTAINMENT ==6 ~ "Bachelors",
+    F3ATTAINMENT ==7 ~ "Post-Bacc. Cert.",
+    F3ATTAINMENT ==8 ~ "Masters",
+    F3ATTAINMENT ==10 ~ "PhD"
+  )
+)
+els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "PS Attendance", "Undergrad Cert.", "Associates", "Bachelors", "Post-Bacc. Cert.", "Masters", "PhD"))
+
+els %>%
+  filter(!is.na(ED_ATNMT)) %>%
+  ggplot() +
+    geom_bar(aes(x=ED_ATNMT))
 ```
 
-- HS GPA: F1RGPP2
+```{r}
+els %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=F3ERN2011))
+```
 
-- SAT: TXEESATC
+<!-- - HS GPA: F1RGPP2 -->
 
-- ACT: TXEEACTC
+<!-- - SAT: TXEESATC -->
+
+<!-- - ACT: TXEEACTC -->
 
 # Familial
 - race: BYRACE
+BYRACE
+   1 = "Amer. Indian/Alaska Native, non-Hispanic"
+   2 = "Asian, Hawaii/Pac. Islander,non-Hispanic"
+   3 = "Black or African American, non-Hispanic"
+   4 = "Hispanic, no race specified"
+   5 = "Hispanic, race specified"
+   6 = "More than one race, non-Hispanic"
+   7 = "White, non-Hispanic"
+   -4 = "Nonrespondent"
+   -8 = "Survey component legitimate skip/NA"
 ```{r}
+# AI/AN = American Indian/Alaska Native
+# API = Asian, Hawaii/Pacific Islander
+els <- els %>% mutate(
+  RACE = case_when(
+    BYRACE == 1 ~ "AI/AN",
+    BYRACE ==2 ~ "API",
+    BYRACE ==3 ~ "Black",
+    BYRACE ==4 | BYRACE ==5 ~ "Hispanic",
+    BYRACE ==6 ~ "Mixed",
+    BYRACE ==7 ~ "White"
+  )
+)
+els$RACE = factor(els$RACE, levels=c( "AI/AN", "Mixed", "API", "Black", "Hispanic","White"))
 
+els %>%
+  filter(!is.na(RACE)) %>%
+  ggplot() +
+  geom_bar(aes(x=RACE))
+
+els$RACE = factor(els$RACE, levels=c("Black", "Hispanic", "AI/AN", "Mixed", "API", "White"))
+              
+els %>%
+  filter(!is.na(RACE)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=RACE))
+
+els %>%
+  filter(!is.na(RACE)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=RACE))
+
+els %>%
+  filter(!is.na(RACE), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=RACE, fill=ED_ATNMT), position = "fill")
+
+sum(is.na(els$RACE))
 ```
 
 - family composition: BYFCOMP
+
+BYFCOMP
+   1 = "Mother and father"
+   2 = "Mother and male guardian"
+   3 = "Father and female guardian"
+   4 = "Two guardians"
+   5 = "Mother only"
+   6 = "Father only"
+   7 = "Female guardian only"
+   8 = "Male guardian only"
+   9 = "Lives with student less than half time"
+   -4 = "Nonrespondent"
+   -8 = "Survey component legitimate skip/NA"
+   -9 = "Missing"
+```{r}
+els <- els %>% mutate(
+  BYFCOMP = na_if(BYFCOMP, BYFCOMP<0),
+  FAM_COMP = case_when(
+    BYFCOMP == 1 | BYFCOMP == 2 | BYFCOMP == 3 | BYFCOMP == 4 ~ "Two Parents",
+    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 ~ "Single Parent",
+    BYFCOMP == 9 ~ "Absent Parent"
+  )
+)
+# els$RACE = factor(els$RACE, levels=c( "Amer. Indian/Alaska Native", "Mixed", "Asian, Hawaii/Pac. Islander", "Black", "Hispanic","White"))
+
+
+els %>%
+  filter(!is.na(FAM_COMP)) %>%
+  ggplot() +
+  geom_bar(aes(x=FAM_COMP))
+
+# els$RACE = factor(els$RACE, levels=c("Black", "Hispanic", "Amer. Indian/Alaska Native", "Mixed", "Asian, Hawaii/Pac. Islander", "White"))
+              
+els %>%
+  filter(!is.na(FAM_COMP)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=FAM_COMP))
+
+els %>%
+  filter(!is.na(FAM_COMP)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=FAM_COMP))
+
+els %>%
+  filter(!is.na(FAM_COMP), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=FAM_COMP), position = "fill")
+```
+
+
 - parents' highest level of education: BYPARED
+BYPARED
+   1 = "Did not finish high school"
+   2 = "Graduated from high school or GED"
+   3 = "Attended 2-year school, no degree"
+   4 = "Graduated from 2-year school"
+   5 = "Attended college, no 4-year degree"
+   6 = "Graduated from college"
+   7 = "Completed Master's degree or equivalent"
+   8 = "Completed PhD, MD, other advanced degree"
+   -4 = "Nonrespondent"
+   -8 = "Survey component legitimate skip/NA"
+   -9 = "Missing"
+```{r}
+els <- els %>% mutate(
+  BYPARED = na_if(BYPARED, BYPARED<0),
+  PT_ED = case_when(
+    BYPARED == 1 ~ "No HS",
+    BYPARED == 2 ~ "GED",
+    BYPARED == 3 | BYPARED == 5 ~ "Attended PS",
+    BYPARED == 4 ~ "Associates",
+    BYPARED == 6 ~ "Bachelors",
+    BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
+  )
+)
+els$PT_ED = factor(els$PT_ED, levels=c("No HS", "GED", "Attended PS", "Associates", "Bachelors", "Advanced Degree"))
+
+els %>%
+  filter(!is.na(PT_ED)) %>%
+  ggplot() +
+  geom_bar(aes(x=PT_ED))
+
+              
+els %>%
+  filter(!is.na(PT_ED)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=PT_ED))
+
+els %>%
+  filter(!is.na(PT_ED)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=PT_ED))
+
+els %>%
+  filter(!is.na(PT_ED), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=PT_ED), position = "fill")
+```
+
+
 - parents' English fluency
+
+
 - socioeconomic status: BYSES1, BYSES1QU, BYSES2, BYSES2QU
+```{r}
+
+els <- els %>% mutate(
+  SESQU = ifelse(BYSES1QU < 0, NA, BYSES1QU),
+  SESQU=factor(SESQU),
+  SES = ifelse(BYSES1 <= -2, NA, BYSES1)
+)
+
+hist(els$BYSES1)
+
+
+els %>%
+  filter(!is.na(SESQU)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=SESQU))
+
+els %>%
+  filter(!is.na(SESQU)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=SESQU))
+
+
+els %>%
+  filter(!is.na(SES), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=SES))
+```
+
 - family income: BYINCOME
-- how far in school parents wants student to go: BYPARASP
+BYINCOME
+   1 = "None"
+   2 = "$1,000 or less"
+   3 = "$1,001-$5,000"
+   4 = "$5,001-$10,000"
+   5 = "$10,001-$15,000"
+   6 = "$15,001-$20,000"
+   7 = "$20,001-$25,000"
+   8 = "$25,001-$35,000"
+   9 = "$35,001-$50,000"
+   10 = "$50,001-$75,000"
+   11 = "$75,001-$100,000"
+   12 = "$100,001-$200,000"
+   13 = "$200,001 or more"
+```{r}
+# els <- els %>% mutate(
+#   PT_ED = na_if(BYPARED, BYPARED<0),
+#   PT_ED = case_when(
+#     BYPARED == 1 ~ "No HS",
+#     BYPARED == 2 ~ "GED",
+#     BYPARED == 3 | BYPARED == 5 ~ "Attended PS",
+#     BYPARED == 4 ~ "Associates",
+#     BYPARED == 6 ~ "Bachelors",
+#     BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
+#   )
+# )
+# els$PT_ED = factor(els$PT_ED, levels=c("No HS", "GED", "Attended PS", "Associates", "Bachelors", "Advanced Degree"))
+
+hist(els$BYINCOME)
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=factor(BYINCOME)))
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=factor(BYINCOME)))
+
+els %>%
+  filter(!is.na(BYINCOME), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=factor(BYINCOME)), position = "fill")
+
+```
+
+<!-- - how far in school parents wants student to go: BYPARASP -->
+<!-- BYPARASP -->
+<!--    1 = "Less than high school graduation" -->
+<!--    2 = "High school graduation or GED only" -->
+<!--    3 = "Attend or complete 2-year college/school" -->
+<!--    4 = "Attend college, 4-year degree incomplete" -->
+<!--    5 = "Graduate from college" -->
+<!--    6 = "Obtain Master's degree or equivalent" -->
+<!--    7 = "Obtain PhD, MD, or other advanced degree" -->
+<!--    -4 = "Nonrespondent" -->
+
 - has a computer at home: BYS84C
+```{r}
+# els <- els %>% mutate(
+#   PT_ED = na_if(BYPARED, BYPARED<0),
+#   PT_ED = case_when(
+#     BYPARED == 1 ~ "No HS",
+#     BYPARED == 2 ~ "GED",
+#     BYPARED == 3 | BYPARED == 5 ~ "Attended PS",
+#     BYPARED == 4 ~ "Associates",
+#     BYPARED == 6 ~ "Bachelors",
+#     BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
+#   )
+# )
+# els$PT_ED = factor(els$PT_ED, levels=c("No HS", "GED", "Attended PS", "Associates", "Bachelors", "Advanced Degree"))
+
+hist(els$BYS84C)
+
+els %>%
+  filter(BYS84C>=0) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=factor(BYS84C)))
+
+els %>%
+  filter(BYS84C>=0) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=factor(BYS84C)))
+
+els %>%
+  filter(BYS84C>=0, !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=factor(BYS84C)), position = "fill")
+
+```
+
 - has own room: BYS84I
 - has Internet access: BYS84D
 - parents expect success in school: BYS27I
