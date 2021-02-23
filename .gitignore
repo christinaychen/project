@@ -37,3 +37,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+.Rproj.user
+
+
+els_02_12_byf3pststu_v1_0.csv
