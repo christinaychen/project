@@ -27,6 +27,7 @@ hist(els$BYTXCSTD)
 ```
 
 - employment income 7 years after graduation (2011): F3ERN2011
+- Socioeconomic status in 2011 F3SESQU
 ```{r}
 sum(els$F3ERN2011==0)
 hist(log(els$F3ERN2011))
@@ -936,10 +937,14 @@ els %>%
 
 - % full-time teachers that are certified: BYA24A/ F1A34A
 ```{r}
-# els <- els %>% mutate(
-#   HIGHEST_TEACHER_SALARY = ifelse(BYA24A < 0, NA, BYA24A),
-#   LOWEST_TEACHER_SALARY = ifelse(BYA26A < 0, NA, BYA26A)
-# )
+els <- els %>% mutate(
+  F1A34A_QU = case_when(
+    F1A34A <= 33 ~ 1,
+    F1A34A <= 67 ~ 2,
+    F1A34A <= 100 ~ 3
+  ),
+  F1A34A_QU = factor(F1A34A_QU)
+)
 hist(els$BYA24A - els$F1A34A)
 
 els %>%
@@ -950,7 +955,8 @@ els %>%
 els %>%
   filter(!is.na(F1A34A)) %>%
   ggplot() +
-  geom_point(aes(y=F3ERN2011, x=F1A34A), alpha=0.1)
+  geom_boxplot(aes(y=F3ERN2011, x=F1A34A_QU)) +
+  facet_grid(.~SESQU)
 
 els %>%
   filter(!is.na(F1A34A), !is.na(ED_ATNMT)) %>%
@@ -1193,4 +1199,146 @@ els %>%
   geom_boxplot(aes(x=ED_ATNMT, y=COURSE_OFFERING_SCORE))
 ```
 
+
+good teachers get higher pay
+BYA28F
+
+
+F1A17D         14466-14468   Tutoring/individualized academic program if fail competency test
+
+
+F1A29DP        14599-14601   # of full-time teachers whose highest degree is EdD or PhD
+F1A30          14606-14609   # of full-time library media resource center staff members
+F1A35          14647-14650   % of full-time library staff is state-certified
+
+BYL11AA        14792-14794   Library has telephone
+BYL11CA        14812-14814   Library has photocopier
+
+BYL03F         14752-14754   Library has computer access area/lab
+
+
+```{r}
+els <- els %>% mutate(
+  TUTORING = ifelse(F1A17D < 0, NA, F1A17D),
+  TUTORING = case_when(
+    TUTORING == 1 ~ 0,
+    TUTORING == 2 | TUTORING==3 ~ 1
+  ),
+  TUTORING= factor(TUTORING)
+)
+
+
+
+els <- els %>% mutate(
+  ED_ATNMT_1 = case_when(
+    F3ATTAINMENT == 1 ~ "No GED",
+    F3ATTAINMENT == 2 ~ "GED",
+    F3ATTAINMENT ==3 | F3ATTAINMENT ==4 | F3ATTAINMENT ==5 ~ "Associates/Some Undergrad",
+    F3ATTAINMENT ==6 ~ "Bachelors",
+    F3ATTAINMENT ==7 | F3ATTAINMENT ==8 | F3ATTAINMENT ==10~ "Futher Education"
+  )
+)
+els$ED_ATNMT_1 = factor(els$ED_ATNMT_1, levels=c( "No GED", "GED", "Associates/Some Undergrad", "Bachelors", "Further Education"))
+
+els %>%
+  filter(!is.na(TUTORING)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=TUTORING)) +
+  facet_grid(.~SESQU)
+
+els %>%
+  filter(!is.na(TUTORING)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=TUTORING)) +
+  facet_grid(.~SESQU)
+
+els %>%
+  filter(!is.na(TUTORING), !is.na(ED_ATNMT), !is.na(SESQU)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT_1, fill=TUTORING), position = "fill") +
+  facet_grid(.~SESQU)
+
+
+```
+
+```{r}
+els <- els %>% mutate(
+  GOOD_TEACHERS_HIGHER_PAY = ifelse(BYA28F < 0, NA, BYA28F),
+  GOOD_TEACHERS_HIGHER_PAY= factor(GOOD_TEACHERS_HIGHER_PAY)
+)
+
+els %>%
+  filter(!is.na(GOOD_TEACHERS_HIGHER_PAY)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=GOOD_TEACHERS_HIGHER_PAY)) +
+  facet_grid(.~SESQU)
+
+els %>%
+  filter(!is.na(GOOD_TEACHERS_HIGHER_PAY)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=GOOD_TEACHERS_HIGHER_PAY)) +
+  facet_grid(.~SESQU)
+
+els %>%
+  filter(!is.na(GOOD_TEACHERS_HIGHER_PAY), !is.na(ED_ATNMT), !is.na(SESQU)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT_1, fill=GOOD_TEACHERS_HIGHER_PAY), position = "fill") +
+  facet_grid(.~SESQU)
+
+
+```
+
+BYA42N         14183-14185   Teachers have access to Internet professional development programs
+BYA43A         14185-14187   Teacher training on use of new software
+BYA43B         14187-14189   Teacher training on use of Internet
+BYA43C         14189-14191   Teacher training on using computers to teach skills
+BYA43D         14191-14193   Teacher training on integrating computer into class
+BYA43E         14193-14195   Teacher training on basic computer literacy
+```{r}
+els <- els %>% mutate(
+  TEACHERS_INTERNET_PROGRAM = ifelse(BYA42N < 0, NA, BYA42N),
+  BYA43A = ifelse(BYA43A < 0, NA, BYA43A),
+  BYA43B = ifelse(BYA43B < 0, NA, BYA43B),
+  BYA43C = ifelse(BYA43C < 0, NA, BYA43C),
+  BYA43D = ifelse(BYA43D < 0, NA, BYA43D),
+  BYA43E = ifelse(BYA43E < 0, NA, BYA43E),
+
+  TEACHER_TRAINING_TECH= factor(BYA43A+BYA43B+BYA43C+BYA43D+BYA43E)
+)
+
+
+els %>%
+  filter(!is.na(TEACHER_TRAINING_TECH)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=TEACHER_TRAINING_TECH))
+
+els %>%
+  filter(!is.na(TEACHER_TRAINING_TECH)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=TEACHER_TRAINING_TECH)) 
+
+els %>%
+  filter(!is.na(TEACHER_TRAINING_TECH), !is.na(ED_ATNMT), !is.na(SESQU)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT_1, fill=TEACHER_TRAINING_TECH), position = "fill")
+
+
+```
+
+
+BYA14B         13749-13752   % 10th-graders in college prep program
+BYA15C         13783-13785   Students in program to prepare for college
+
+```{r}
+els %>%
+  ggplot() +
+  geom_point(aes(x=BYA14B, y=F3ERN2011 ))
+
+els %>%
+  filter(!is.na(BYA14B), !is.na(ED_ATNMT), !is.na(SESQU)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT_1, y=BYA14B)) +
+  facet_grid(.~SESQU)
+
+```
 
