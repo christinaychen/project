@@ -1,0 +1,310 @@
+---
+title: "Analysis of Student Success"
+author: "Christina Chen"
+date: "2/24/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(ggplot2)
+
+# data file too large to push to git - split into two halfs in split_data.R
+student_data1 = read.csv("els_student_first_half.csv")
+student_data2 = read.csv("els_student_second_half.csv")
+els = rbind(student_data1, student_data2)
+els_original=els
+```
+
+
+# Introduction
+## Context
+Government spending on US education has been a long standing debate. In 1966, James S. Coleman conducted a survey for the federal government to address a section in the Civil Rights Act of 1964 "concerning the lack of availability of equal educational opportunities for individuals by reason of race, color, religion, or national origin." After collecting data on 650,000 students and teachers, he wrote a 700-page report stating that school matters less than family in influencing student outcome. Many took this as a sign that additional spending on education would make little difference. However, he also found evidence of education inequality between rich and poor students. It seems that if the money is spent in the right way, for example, in bridging the gap between school quality, extra spending does make a difference.
+
+## Literature
+A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds. Another study "School Finance Reform and the Distribution of Student Achievement" draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that money matters as well, leading to improvement in student achievement (measured by test scores) in low income districts.
+
+## Motivations and Research Questions
+To understand factors that may affect student success, we will investigate predictors that fall under the categories of familial/economical, to see if there is credit to Coleman's claims and to identify issues with socioeconomic disparity; and educational, to analyze the effects of school finances. For the educational category, we won't be looking directly at school expenditure and revenue, but rather at variables that could be correlated with expenditure, such as teacher salary, access to technology, access to counseling, etc. Since public school revenue is related to local taxes, we'll also be looking at socioeconomic factors on the school level. The measurement for student success will not only be test scores, but also enrollment in further education and income after entering the work force.
+
+## Data
+The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16000 observations on the student level.
+
+## Variables
+### Measures of Success for Research Questions
+1. standardized test composite (10th grade)
+2. employment income 7 years after graduation (2011)
+3. highest level of education earned 8 years after graduation (2012)
+
+```{r}
+
+els <- els %>%
+  mutate(F3ERN2011_ORIGINAL = F3ERN2011,
+         F3ERN2011 = ifelse(F3ERN2011 < 0, NA, F3ERN2011),
+         F3ERN2011 = log(F3ERN2011+0.1))
+
+
+els <- els %>% mutate(
+  ED_ATNMT = case_when(
+    F3ATTAINMENT == 1 ~ "No GED",
+    F3ATTAINMENT == 2 ~ "GED",
+    F3ATTAINMENT ==3 | F3ATTAINMENT ==4 | F3ATTAINMENT ==5 ~ "Associates/\nSome Undergrad",
+    F3ATTAINMENT ==6 ~ "Bachelors",
+    F3ATTAINMENT ==7 | F3ATTAINMENT ==8~ "Master's/\nPost-Bacc. Cert.",
+    F3ATTAINMENT ==10 ~ "PhD"
+  )
+)
+els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSome Undergrad", "Bachelors", "Master's/\nPost-Bacc. Cert.", "PhD"))
+
+# els %>%
+#   filter(!is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#     geom_bar(aes(x=ED_ATNMT)) +
+#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+#   labs(x="Education Attained", y="Count")
+```
+
+### Familial Predictors
+- race
+- family composition
+- parents' highest level of education
+- parents' English fluency
+- socioeconomic status
+- how far in school parents wants student to go
+- has a computer at home
+- has Internet access
+```{r}
+# AI/AN = American Indian/Alaska Native
+# API = Asian, Hawaii/Pacific Islander
+els <- els %>% mutate(
+  RACE = case_when(
+    BYRACE == 1 ~ "AI/AN",
+    BYRACE ==2 ~ "API",
+    BYRACE ==3 ~ "Black",
+    BYRACE ==4 | BYRACE ==5 ~ "Hispanic",
+    BYRACE ==6 ~ "Mixed",
+    BYRACE ==7 ~ "White"
+  )
+)
+els$RACE = factor(els$RACE, levels=c( "AI/AN", "Mixed", "API", "Black", "Hispanic","White"))
+
+
+els <- els %>% mutate(
+  BYFCOMP = na_if(BYFCOMP, BYFCOMP<0),
+  FAM_COMP = case_when(
+    BYFCOMP == 1 | BYFCOMP == 2 | BYFCOMP == 3 | BYFCOMP == 4 ~ "Two Parents",
+    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 ~ "Single Parent",
+    BYFCOMP == 9 ~ "Absent Parent"
+  )
+)
+
+els <- els %>% mutate(
+  BYPARED = na_if(BYPARED, BYPARED<0),
+  PT_ED = case_when(
+    BYPARED == 1 ~ "No HS",
+    BYPARED == 2 ~ "GED",
+    BYPARED == 3 | BYPARED == 5 ~ "Attended PS",
+    BYPARED == 4 ~ "Associates",
+    BYPARED == 6 ~ "Bachelors",
+    BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
+  )
+)
+els$PT_ED = factor(els$PT_ED, levels=c("No HS", "GED", "Attended PS", "Associates", "Bachelors", "Advanced Degree"))
+
+els <- els %>% mutate(
+  SESQU = ifelse(BYSES1QU < 0, NA, BYSES1QU),
+  SESQU = case_when(
+    SESQU == 1 ~ "1st SES Quartile",
+    SESQU == 2 ~ "2nd SES Quartile",
+    SESQU == 3 ~ "3rd SES Quartile",
+    SESQU == 4 ~ "4th SES Quartile"
+  ),
+  SESQU=factor(SESQU),
+  SES = ifelse(BYSES1 <= -2, NA, BYSES1)
+)
+
+els <- els %>% mutate(FAM_INCOME = factor(BYINCOME))
+
+els <- els %>% mutate(
+  PT_PUSH = na_if(BYPARASP, BYPARASP<0),
+  PT_PUSH = case_when(
+    PT_PUSH == 1 ~ "Less than HS Grad",
+    PT_PUSH == 2 ~ "GED",
+    PT_PUSH == 3 | BYPARED == 4 ~ "Any college (2 or 4 year)",
+    PT_PUSH == 5 ~ "Graduate from college",
+    PT_PUSH == 6 ~ "Master's",
+    PT_PUSH == 7 ~ "Advanced Degree"
+  )
+)
+els$PT_PUSH = factor(els$PT_PUSH, levels=c("Less than HS Grad", "GED", "Any college (2 or 4 year)", "Graduate from college", "Master's", "Advanced Degree"))
+
+
+els <- els %>% mutate(
+  COMP_HOME = ifelse(BYS84C < 0, NA, BYS84C),
+  COMP_HOME=factor(COMP_HOME)
+)
+
+els <- els %>% mutate(
+  HAS_INTERNET = ifelse(BYS84D < 0, NA, BYS84D),
+  HAS_INTERNET=factor(HAS_INTERNET)
+)
+
+els <- els %>% mutate(
+  PT_EXPT_SCSS = ifelse(BYS27I < 0, NA, BYS27I),
+  PT_EXPT_SCSS=case_when(
+    PT_EXPT_SCSS == 1 ~ "Strongly Agree",
+    PT_EXPT_SCSS == 2 ~ "Agree",
+    PT_EXPT_SCSS == 3 ~ "Disagree",
+    PT_EXPT_SCSS == 4 ~ "Strongly Disagree"
+  )
+)
+```
+
+```{r fig.height = 4, fig.width = 7}
+# els %>%
+#   filter(!is.na(ED_ATNMT), !is.na(FAM_COMP), !is.na(SESQU)) %>%
+#   ggplot() +
+#     geom_bar(aes(x=ED_ATNMT, fill=FAM_COMP), position="fill") +
+#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+#   labs(x="Education Attained", y="Count") +
+#   facet_grid(.~SESQU)
+# 
+# els %>%
+#   filter(!is.na(ED_ATNMT), !is.na(SES), !is.na(COMP_HOME)) %>%
+#   ggplot() +
+#     geom_bar(aes(x=COMP_HOME, fill=ED_ATNMT), position="fill") +
+#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+#   labs(x="Education Attained", y="Count")+
+#   facet_wrap(.~factor(SESQU))
+
+els %>%
+  filter(!is.na(FAM_COMP), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=FAM_COMP), position = "fill") +
+  labs(x="Educational Attainment", y="Proportion", fill="Family Composition", title="Positive Relationship between Two Parent Families\nand Higher Education Attainment") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.7, hjust=0.5)) 
+
+# els %>%
+#   filter(!is.na(SESQU)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=SESQU)) +
+#   labs(x="Family's Socioeconomic Quartile", y="Student Standardized Test Composite", title="")
+
+
+```
+
+### Educational Predictors
+- school type (private/public/Catholic)
+- school urbanicity (urban, suburban, rural)
+<!-- - dropout prevention program offered -->
+- programs for pregnant girls/teenage mothers offered
+- vocational counseling/services/programs offered
+- learning hindrance score
+  - poor conditions: buildings (double weighted), heating/air/light (double weighted), science labs, fine arts facilities, lack of space (double weighted), library
+  - lack of supplies: texts (double weighted), computers, multi-media, poor tech equipment
+<!-- - teacher access to technology -->
+<!-- - highest salary paid to full-time teachers -->
+- percent of full-time teachers that are state certified
+<!-- - % full-time teachers that teach out of field -->
+- percent of students with free lunch
+- has paid security at any time
+<!-- - interaction between percent of students with free lunch and school type -->
+
+```{r}
+els <- els %>% mutate(
+  SCHOOL_TYPE=case_when(
+    BYSCTRL == 1 ~ "Public",
+    BYSCTRL == 2 ~ "Catholic",
+    BYSCTRL == 3 ~ "Private"
+  )
+)
+
+els <- els %>% mutate(
+  SCHOOL_URBAN=case_when(
+    BYURBAN == 1 ~ "Urban",
+    BYURBAN == 2 ~ "Suburban",
+    BYURBAN == 3 ~ "Rural"
+  )
+)
+
+els <- els %>% mutate(
+  DROPOUT_PREV_PGM = ifelse(F1A23 < 0, NA, F1A23),
+  DROPOUT_PREV_PGM=factor(DROPOUT_PREV_PGM)
+)
+
+els <- els %>% mutate(
+  PRG_PGM = ifelse(F1A21F < 0, NA, F1A21F),
+  PRG_PGM=factor(PRG_PGM)
+)
+
+els <- els %>% mutate(
+  VOCATIONAL_PGM = ifelse(F1A21A < 0, NA, F1A21A),
+  VOCATIONAL_PGM=factor(VOCATIONAL_PGM)
+)
+
+
+els <- els %>% mutate(
+  BYA50A_1 = ifelse(BYA50A<0, NA, BYA50A),
+  BYA50B_1 = ifelse(BYA50B<0, NA, BYA50B),
+  BYA50C_1 = ifelse(BYA50C<0, NA, BYA50C),
+  BYA50D_1 = ifelse(BYA50D<0, NA, BYA50D),
+  BYA50E_1 = ifelse(BYA50E<0, NA, BYA50E),
+  BYA50F_1 = ifelse(BYA50F<0, NA, BYA50F),
+  BYA50G_1 = ifelse(BYA50G<0, NA, BYA50G),
+  BYA50H_1 = ifelse(BYA50H<0, NA, BYA50H),
+  BYA50I_1 = ifelse( BYA50I<0,NA, BYA50I),
+  BYA50J_1 = ifelse( BYA50J<0, NA, BYA50J),
+  BYA50K_1 = ifelse(BYA50K<0, NA, BYA50K),
+  LEARNING_HINDERED_CONDITIONS = 2*BYA50A_1 + 2*BYA50B_1 + BYA50C_1 +BYA50D_1+ 2*BYA50E_1+BYA50F_1,
+  LEARNING_HINDERED_LACK_SUPPLIES = 2*BYA50G_1+ BYA50H_1+BYA50K_1,
+  LEARNING_HINDERED = LEARNING_HINDERED_CONDITIONS + LEARNING_HINDERED_LACK_SUPPLIES,
+  LEARNING_HINDERED_QU = case_when(
+    LEARNING_HINDERED <=15 ~ 1,
+    LEARNING_HINDERED <=20 ~ 2,
+    LEARNING_HINDERED <=27 ~ 3,
+    LEARNING_HINDERED <=49 ~ 4
+  ),
+  LEARNING_HINDERED_QU = factor(LEARNING_HINDERED_QU)
+)
+
+els <- els %>% mutate(
+  FREE_LUNCH_PERC = factor(ifelse(F1SCFLP < 0, NA, F1SCFLP))
+)
+
+els <- els %>% mutate(
+  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A)),
+  FREE_LUNCH_CATEGORIES = case_when(
+    as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
+    as.numeric(FREE_LUNCH_PERC) > 5 ~ ">50%"
+  )
+)
+```
+
+```{r fig.height = 4, fig.width = 7}
+els %>%
+  filter(!is.na(BYA50A_1), !is.na(SESQU)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=factor(BYA50A_1))) +
+  labs(x="Learning Hindrance Score Quartile", y="Student Standardized Test Composite", title="Test Scores of Students of Higher SES More Negatively Affected\nby Learning Hindrances") +
+  facet_grid(.~SESQU)
+
+# els %>%
+#   filter(!is.na(DROPOUT_PREV_PGM), !is.na(SESQU)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=SECURITY))
+```
+
+
+\newpage
+## Sources
+<https://www.npr.org/sections/ed/2016/04/25/468157856/can-more-money-fix-americas-schools>
+
+<https://equitablegrowth.org/can-school-finance-reforms-improve-student-achievement/>
+
+<https://www.nber.org/papers/w20847>
+
+<https://fordhaminstitute.org/national/commentary/education-longitudinal-study-2002>
+
+<https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/>
+

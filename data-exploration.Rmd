@@ -30,6 +30,11 @@ hist(els$BYTXCSTD)
 ```{r}
 sum(els$F3ERN2011==0)
 hist(log(els$F3ERN2011))
+
+els <- els %>%
+  mutate(F3ERN2011_ORIGINAL = F3ERN2011,
+         F3ERN2011 = ifelse(F3ERN2011 < 0, NA, F3ERN2011),
+         F3ERN2011 = log(F3ERN2011+0.1))
 ```
 
 - highest level of education earned 8 years after graduation (2012): F3ATTAINMENT
@@ -50,27 +55,36 @@ els <- els %>% mutate(
   ED_ATNMT = case_when(
     F3ATTAINMENT == 1 ~ "No GED",
     F3ATTAINMENT == 2 ~ "GED",
-    F3ATTAINMENT ==3 ~ "PS Attendance",
-    F3ATTAINMENT ==4 ~ "Undergrad Cert.",
-    F3ATTAINMENT ==5 ~ "Associates",
+    F3ATTAINMENT ==3 | F3ATTAINMENT ==4 | F3ATTAINMENT ==5 ~ "Associates/Some Undergrad",
     F3ATTAINMENT ==6 ~ "Bachelors",
-    F3ATTAINMENT ==7 ~ "Post-Bacc. Cert.",
-    F3ATTAINMENT ==8 ~ "Masters",
+    F3ATTAINMENT ==7 | F3ATTAINMENT ==8~ "Master's/Post-Bacc. Cert.",
     F3ATTAINMENT ==10 ~ "PhD"
   )
 )
-els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "PS Attendance", "Undergrad Cert.", "Associates", "Bachelors", "Post-Bacc. Cert.", "Masters", "PhD"))
+els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/Some Undergrad", "Bachelors", "Master's/Post-Bacc. Cert.", "PhD"))
 
 els %>%
   filter(!is.na(ED_ATNMT)) %>%
   ggplot() +
-    geom_bar(aes(x=ED_ATNMT))
+    geom_bar(aes(x=ED_ATNMT)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+  labs(x="Education Attained", y="Count")
 ```
 
+## relationships between outcomes
 ```{r}
 els %>%
   ggplot() +
   geom_boxplot(aes(x=ED_ATNMT, y=F3ERN2011))
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=BYTXCSTD))
+
+els %>%
+  filter(F3ERN2011!=0) %>%
+  ggplot() +
+  geom_point(aes(x=F3ERN2011, y =BYTXCSTD), alpha=0.05)
 ```
 
 <!-- - HS GPA: F1RGPP2 -->
@@ -295,6 +309,10 @@ BYINCOME
 
 hist(els$BYINCOME)
 
+# els %>%
+#   ggplot() +
+#   geom_bar(aes(x=BYINCOME, fill=factor(SESQU)), position="fill")
+
 els %>%
   ggplot() +
   geom_boxplot(aes(y=BYTXCSTD, x=factor(BYINCOME)))
@@ -308,65 +326,342 @@ els %>%
   ggplot() +
   geom_bar(aes(x=ED_ATNMT, fill=factor(BYINCOME)), position = "fill")
 
+els <- els %>% mutate(FAM_INCOME = factor(BYINCOME))
 ```
 
-<!-- - how far in school parents wants student to go: BYPARASP -->
-<!-- BYPARASP -->
-<!--    1 = "Less than high school graduation" -->
-<!--    2 = "High school graduation or GED only" -->
-<!--    3 = "Attend or complete 2-year college/school" -->
-<!--    4 = "Attend college, 4-year degree incomplete" -->
-<!--    5 = "Graduate from college" -->
-<!--    6 = "Obtain Master's degree or equivalent" -->
-<!--    7 = "Obtain PhD, MD, or other advanced degree" -->
-<!--    -4 = "Nonrespondent" -->
+- how far in school parents wants student to go: BYPARASP
+BYPARASP
+   1 = "Less than high school graduation"
+   2 = "High school graduation or GED only"
+   3 = "Attend or complete 2-year college/school"
+   4 = "Attend college, 4-year degree incomplete"
+   5 = "Graduate from college"
+   6 = "Obtain Master's degree or equivalent"
+   7 = "Obtain PhD, MD, or other advanced degree"
+   -4 = "Nonrespondent"
+```{r}
+els <- els %>% mutate(
+  PT_PUSH = na_if(BYPARASP, BYPARASP<0),
+  PT_PUSH = case_when(
+    PT_PUSH == 1 ~ "Less than HS Grad",
+    PT_PUSH == 2 ~ "GED",
+    PT_PUSH == 3 | BYPARED == 4 ~ "Any college (2 or 4 year)",
+    PT_PUSH == 5 ~ "Graduate from college",
+    PT_PUSH == 6 ~ "Master's",
+    PT_PUSH == 7 ~ "Advanced Degree"
+  )
+)
+els$PT_PUSH = factor(els$PT_PUSH, levels=c("Less than HS Grad", "GED", "Any college (2 or 4 year)", "Graduate from college", "Master's", "Advanced Degree"))
+
+# hist(els$BYINCOME)
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=PT_PUSH))
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=PT_PUSH))
+
+els %>%
+  filter(!is.na(PT_PUSH), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=PT_PUSH), position = "fill")
+
+```
 
 - has a computer at home: BYS84C
 ```{r}
-# els <- els %>% mutate(
-#   PT_ED = na_if(BYPARED, BYPARED<0),
-#   PT_ED = case_when(
-#     BYPARED == 1 ~ "No HS",
-#     BYPARED == 2 ~ "GED",
-#     BYPARED == 3 | BYPARED == 5 ~ "Attended PS",
-#     BYPARED == 4 ~ "Associates",
-#     BYPARED == 6 ~ "Bachelors",
-#     BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
-#   )
-# )
-# els$PT_ED = factor(els$PT_ED, levels=c("No HS", "GED", "Attended PS", "Associates", "Bachelors", "Advanced Degree"))
-
-hist(els$BYS84C)
+els <- els %>% mutate(
+  COMP_HOME = ifelse(BYS84C < 0, NA, BYS84C),
+  COMP_HOME=factor(COMP_HOME)
+)
 
 els %>%
-  filter(BYS84C>=0) %>%
+  filter(!is.na(COMP_HOME)) %>%
   ggplot() +
-  geom_boxplot(aes(y=BYTXCSTD, x=factor(BYS84C)))
+  geom_boxplot(aes(y=BYTXCSTD, x=COMP_HOME))
 
 els %>%
-  filter(BYS84C>=0) %>%
+  filter(!is.na(COMP_HOME)) %>%
   ggplot() +
-  geom_boxplot(aes(y=log(F3ERN2011), x=factor(BYS84C)))
+  geom_boxplot(aes(y=log(F3ERN2011), x=COMP_HOME))
 
 els %>%
-  filter(BYS84C>=0, !is.na(ED_ATNMT)) %>%
+  filter(!is.na(COMP_HOME), !is.na(ED_ATNMT)) %>%
   ggplot() +
-  geom_bar(aes(x=ED_ATNMT, fill=factor(BYS84C)), position = "fill")
+  geom_bar(aes(x=ED_ATNMT, fill=COMP_HOME), position = "fill")
 
 ```
 
 - has own room: BYS84I
+```{r}
+els <- els %>% mutate(
+  OWN_ROOM = ifelse(BYS84I < 0, NA, BYS84I),
+  OWN_ROOM=factor(OWN_ROOM)
+)
+
+els %>%
+  filter(!is.na(OWN_ROOM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=OWN_ROOM))
+
+els %>%
+  filter(!is.na(OWN_ROOM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=OWN_ROOM))
+
+els %>%
+  filter(!is.na(OWN_ROOM), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=OWN_ROOM), position = "fill")
+
+```
+
 - has Internet access: BYS84D
+```{r}
+els <- els %>% mutate(
+  HAS_INTERNET = ifelse(BYS84D < 0, NA, BYS84D),
+  HAS_INTERNET=factor(HAS_INTERNET)
+)
+
+els %>%
+  filter(!is.na(HAS_INTERNET)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=HAS_INTERNET))
+
+els %>%
+  filter(!is.na(HAS_INTERNET)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=HAS_INTERNET))
+
+els %>%
+  filter(!is.na(HAS_INTERNET), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=HAS_INTERNET), position = "fill")
+
+```
 - parents expect success in school: BYS27I
+BYS27I
+   1 = "Strongly agree"
+   2 = "Agree"
+   3 = "Disagree"
+   4 = "Strongly disagree"
+   -4 = "Nonrespondent"
+   -6 = "Multiple response"
+   -7 = "Not administered; abbreviated interview or breakoff"
+   -8 = "Survey component legitimate skip/NA"
+   -9 = "Missing"
+```{r}
+els <- els %>% mutate(
+  PT_EXPT_SCSS = ifelse(BYS27I < 0, NA, BYS27I),
+  PT_EXPT_SCSS=case_when(
+    PT_EXPT_SCSS == 1 ~ "Strongly Agree",
+    PT_EXPT_SCSS == 2 ~ "Agree",
+    PT_EXPT_SCSS == 3 ~ "Disagree",
+    PT_EXPT_SCSS == 4 ~ "Strongly Disagree"
+  )
+)
+
+els %>%
+  filter(!is.na(PT_EXPT_SCSS)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=PT_EXPT_SCSS))
+
+els %>%
+  filter(!is.na(PT_EXPT_SCSS)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=log(F3ERN2011), x=PT_EXPT_SCSS))
+
+els %>%
+  filter(!is.na(PT_EXPT_SCSS), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=PT_EXPT_SCSS), position = "fill")
+
+```
 
 # Educational (for the school the student attends)
 - school type (private/public): BYSCTRL
+BYSCTRL
+   1 = "Public"
+   2 = "Catholic"
+   3 = "Other private"
+```{r}
+els <- els %>% mutate(
+  SCHOOL_TYPE=case_when(
+    BYSCTRL == 1 ~ "Public",
+    BYSCTRL == 2 ~ "Catholic",
+    BYSCTRL == 3 ~ "Private"
+  )
+)
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=SCHOOL_TYPE))
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=SCHOOL_TYPE))
+
+els %>%
+  filter(!is.na(SCHOOL_TYPE), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=SCHOOL_TYPE), position = "fill")
+
+```
 - school urbanicity: BYURBAN
+BYURBAN
+   1 = "Urban"
+   2 = "Suburban"
+   3 = "Rural"
+```{r}
+els <- els %>% mutate(
+  SCHOOL_URBAN=case_when(
+    BYURBAN == 1 ~ "Urban",
+    BYURBAN == 2 ~ "Suburban",
+    BYURBAN == 3 ~ "Rural"
+  )
+)
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=SCHOOL_URBAN))
+
+els %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=SCHOOL_URBAN))
+
+els %>%
+  filter(!is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=SCHOOL_URBAN), position = "fill")
+
+```
 - dropout prevention program offered: F1A23
+```{r}
+els <- els %>% mutate(
+  DROPOUT_PREV_PGM = ifelse(F1A23 < 0, NA, F1A23),
+  DROPOUT_PREV_PGM=factor(DROPOUT_PREV_PGM)
+)
+
+
+els %>%
+  filter(!is.na(DROPOUT_PREV_PGM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=DROPOUT_PREV_PGM))
+
+els %>%
+  filter(!is.na(DROPOUT_PREV_PGM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=DROPOUT_PREV_PGM))
+
+els %>%
+  filter(!is.na(DROPOUT_PREV_PGM), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=DROPOUT_PREV_PGM), position = "fill")
+
+els %>%
+  ggplot() +
+  geom_bar(aes(fill=DROPOUT_PREV_PGM, x=FREE_LUNCH_PERC), position="fill")
+
+```
 - programs for pregnant girls/teenage mothers offered: F1A21F
+```{r}
+els <- els %>% mutate(
+  PRG_PGM = ifelse(F1A21F < 0, NA, F1A21F),
+  PRG_PGM=factor(PRG_PGM)
+)
+
+
+els %>%
+  filter(!is.na(PRG_PGM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=PRG_PGM))
+
+els %>%
+  filter(!is.na(PRG_PGM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=PRG_PGM))
+
+els %>%
+  filter(!is.na(PRG_PGM), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=PRG_PGM), position = "fill") +
+  facet_grid(.~SESQU)
+
+```
 - individual/family psychological counseling offered: F1A21E
+```{r}
+els <- els %>% mutate(
+  PSYCH_COUNSELING = ifelse(F1A21E < 0, NA, F1A21E),
+  PSYCH_COUNSELING=factor(PSYCH_COUNSELING)
+)
+
+
+els %>%
+  filter(!is.na(PSYCH_COUNSELING)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=PSYCH_COUNSELING))
+
+els %>%
+  filter(!is.na(PSYCH_COUNSELING)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=PSYCH_COUNSELING))
+
+els %>%
+  filter(!is.na(PSYCH_COUNSELING), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=PSYCH_COUNSELING), position = "fill")
+
+```
 - school-sponsored community service offered: F1A21D
+```{r}
+els <- els %>% mutate(
+  COMMTY_SERVICE = ifelse(F1A21D < 0, NA, F1A21D),
+  COMMTY_SERVICE=factor(COMMTY_SERVICE)
+)
+
+
+els %>%
+  filter(!is.na(COMMTY_SERVICE)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=COMMTY_SERVICE))
+
+els %>%
+  filter(!is.na(COMMTY_SERVICE)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=COMMTY_SERVICE))
+
+els %>%
+  filter(!is.na(COMMTY_SERVICE), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=COMMTY_SERVICE), position = "fill")
+
+```
 - vocational counseling/services/programs offered: F1A21A
+```{r}
+els <- els %>% mutate(
+  VOCATIONAL_PGM = ifelse(F1A21A < 0, NA, F1A21A),
+  VOCATIONAL_PGM=factor(VOCATIONAL_PGM)
+)
+
+
+els %>%
+  filter(!is.na(VOCATIONAL_PGM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=VOCATIONAL_PGM))
+
+els %>%
+  filter(!is.na(VOCATIONAL_PGM)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=VOCATIONAL_PGM))
+
+els %>%
+  filter(!is.na(VOCATIONAL_PGM), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=VOCATIONAL_PGM), position = "fill")
+
+```
 - learning hindered by poor condition of buildings, poor heating/air/light, poor science labs, poor fine arts facilities, poor lack of space, library, lack of texts/supplies, too few computers, lack of multi-media, lack of discipline/safety, poor voc/tech equipment/facilities
 
 BYA50A         14277-14279   Learning hindered by poor condition of buildings
@@ -375,11 +670,131 @@ BYA50C         14281-14283   Learning hindered by poor science labs
 BYA50D         14283-14285   Learning hindered by poor fine arts facilities
 BYA50E         14285-14287   Learning hindered by lack of space
 BYA50F         14287-14289   Learning hindered by poor library
+
 BYA50G         14289-14291   Learning hindered by lack of texts/supplies
 BYA50H         14291-14293   Learning hindered by too few computers
 BYA50I         14293-14295   Learning hindered by lack of multi-media
 BYA50J         14295-14297   Learning hindered by lack of discipline/safety
 BYA50K         14297-14299   Learning hindered by poor voc/tech equipment/facilities
+
+```{r}
+
+els <- els %>% mutate(
+  BYA50A_1 = ifelse(BYA50A<0, NA, BYA50A),
+  BYA50B_1 = ifelse(BYA50B<0, NA, BYA50B),
+  BYA50C_1 = ifelse(BYA50C<0, NA, BYA50C),
+  BYA50D_1 = ifelse(BYA50D<0, NA, BYA50D),
+  BYA50E_1 = ifelse(BYA50E<0, NA, BYA50E),
+  BYA50F_1 = ifelse(BYA50F<0, NA, BYA50F),
+  BYA50G_1 = ifelse(BYA50G<0, NA, BYA50G),
+  BYA50H_1 = ifelse(BYA50H<0, NA, BYA50H),
+  BYA50I_1 = ifelse( BYA50I<0,NA, BYA50I),
+  BYA50J_1 = ifelse( BYA50J<0, NA, BYA50J),
+  BYA50K_1 = ifelse(BYA50K<0, NA, BYA50K),
+  LEARNING_HINDERED_CONDITIONS = 2*BYA50A_1 + 2*BYA50B_1 + BYA50C_1 +BYA50D_1+ 2*BYA50E_1+BYA50F_1,
+  LEARNING_HINDERED_LACK_SUPPLIES = 2*BYA50G_1+ BYA50H_1+BYA50K_1,
+  LEARNING_HINDERED = LEARNING_HINDERED_CONDITIONS + LEARNING_HINDERED_LACK_SUPPLIES,
+  LEARNING_HINDERED_QU = case_when(
+    LEARNING_HINDERED <=15 ~ 1,
+    LEARNING_HINDERED <=20 ~ 2,
+    LEARNING_HINDERED <=27 ~ 3,
+    LEARNING_HINDERED <=49 ~ 4
+  ),
+  LEARNING_HINDERED_QU = factor(LEARNING_HINDERED_QU)
+)
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED_CONDITIONS)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=LEARNING_HINDERED_CONDITIONS))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED_CONDITIONS)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=LEARNING_HINDERED_CONDITIONS))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED_CONDITIONS), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=LEARNING_HINDERED_CONDITIONS))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED_LACK_SUPPLIES)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=LEARNING_HINDERED_LACK_SUPPLIES))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED_LACK_SUPPLIES)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=LEARNING_HINDERED_LACK_SUPPLIES))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED_LACK_SUPPLIES), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=LEARNING_HINDERED_LACK_SUPPLIES))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=LEARNING_HINDERED_QU))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=LEARNING_HINDERED_QU))
+
+els %>%
+  filter(!is.na(LEARNING_HINDERED), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=LEARNING_HINDERED))
+
+
+
+els %>%
+  filter(!is.na(BYA50A_1)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=factor(BYA50A_1)))
+
+els %>%
+  filter(!is.na(BYA50A_1)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=factor(BYA50A_1)))
+
+els %>%
+  filter(!is.na(BYA50A_1), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=factor(BYA50A_1)), position="fill")
+# els %>%
+#   filter(!is.na(LEARNING_HINDERED_CONDITIONS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=LEARNING_HINDERED_CONDITIONS))
+# 
+# els %>%
+#   filter(!is.na(LEARNING_HINDERED_CONDITIONS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=LEARNING_HINDERED_CONDITIONS))
+# 
+# els %>%
+#   filter(!is.na(LEARNING_HINDERED_CONDITIONS), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=LEARNING_HINDERED_CONDITIONS), position = "fill")
+# 
+# els %>%
+#   filter(!is.na(LEARNING_HINDERED_LACK_SUPPLIES)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=LEARNING_HINDERED_LACK_SUPPLIES))
+# 
+# els %>%
+#   filter(!is.na(LEARNING_HINDERED_LACK_SUPPLIES)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=LEARNING_HINDERED_LACK_SUPPLIES))
+# 
+# els %>%
+#   filter(!is.na(LEARNING_HINDERED_LACK_SUPPLIES), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=LEARNING_HINDERED_LACK_SUPPLIES), position = "fill")
+
+```
 
 
 - teacher access to technology
@@ -398,14 +813,384 @@ BYA41K         14151-14153   Teachers have access to laptop computer
 BYA41L         14153-14155   Teachers have access to Internet
 BYA41M         14155-14157   Teachers have access to computer printer
 
-- highest salary paid to full-time teachers: BYA26B
-- % full-time teachers that are certified: BYA24A
-- % full-time teachers that teach out of field: BYA25A
-- percent of 10th graders with free lunch: BY10FLP
-
-
-
 ```{r}
 
+els <- els %>% mutate(
+  BYA41A_1 = ifelse( BYA41A<0, NA, BYA41A),
+  BYA41B_1 = ifelse( BYA41B<0, NA, BYA41B),
+  BYA41C_1 = ifelse( BYA41C<0, NA, BYA41C),
+  BYA41D_1 = ifelse( BYA41D<0, NA, BYA41D),
+  BYA41E_1 = ifelse( BYA41E<0, NA, BYA41E),
+  BYA41F_1 = ifelse( BYA41F<0, NA, BYA41F),
+  BYA41G_1 = ifelse( BYA41G<0, NA, BYA41G),
+  BYA41H_1 = ifelse( BYA41H<0, NA, BYA41H),
+  BYA41I_1 = ifelse( BYA41I<0, NA, BYA41I),
+  BYA41J_1 = ifelse( BYA41J<0, NA, BYA41J),
+  BYA41K_1 = ifelse( BYA41K<0, NA, BYA41K),
+  BYA41L_1 = ifelse( BYA41L<0, NA, BYA41L),
+  BYA41M_1 = ifelse(BYA41M<0, NA, BYA41M),
+  TEACHER_BASIC_TECH_ACCESS = factor(BYA41K_1 & BYA41L_1 & BYA41M_1),
+  TEACHER_TECH_ACCESS = BYA41A_1+ BYA41B_1+BYA41C_1+BYA41D_1+BYA41E_1+BYA41F_1+BYA41G_1+BYA41H_1+BYA41I_1+BYA41J_1+2*BYA41K_1+2*BYA41L_1+ BYA41M_1
+)
+
+hist(els$TEACHER_TECH_ACCESS)
+
+els %>%
+  filter(!is.na(TEACHER_TECH_ACCESS)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=TEACHER_TECH_ACCESS))
+
+els %>%
+  filter(!is.na(TEACHER_TECH_ACCESS)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=TEACHER_TECH_ACCESS))
+
+els %>%
+  filter(!is.na(TEACHER_TECH_ACCESS), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=TEACHER_TECH_ACCESS))
+
+
+
+# els %>%
+#   filter(!is.na(TEACHER_BASIC_TECH_ACCESS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=TEACHER_BASIC_TECH_ACCESS))
+# 
+# els %>%
+#   filter(!is.na(TEACHER_BASIC_TECH_ACCESS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=TEACHER_BASIC_TECH_ACCESS))
+# 
+# els %>%
+#   filter(!is.na(TEACHER_BASIC_TECH_ACCESS), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=TEACHER_BASIC_TECH_ACCESS), position="fill")
+
+
+# els %>%
+#   filter(!is.na(TEACHER_TECH_ACCESS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=TEACHER_TECH_ACCESS))
+# 
+# els %>%
+#   filter(!is.na(TEACHER_TECH_ACCESS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=TEACHER_TECH_ACCESS))
+# 
+# els %>%
+#   filter(!is.na(TEACHER_TECH_ACCESS), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=TEACHER_TECH_ACCESS), position = "fill")
+# 
+# 
+# 
+# els %>%
+#   filter(!is.na(BYA41B_1)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=factor(BYA41B_1)))
+# 
+# els %>%
+#   filter(!is.na(BYA41B_1)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=factor(BYA41B_1)))
+# 
+# els %>%
+#   filter(!is.na(BYA41B_1), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=factor(BYA41B_1)), position = "fill")
+
 ```
+- highest salary paid to full-time teachers: BYA26B
+- lowest salary paid to full-time teachers: BYA26A
+```{r}
+els <- els %>% mutate(
+  HIGHEST_TEACHER_SALARY = ifelse(BYA26B < 0, NA, BYA26B),
+  LOWEST_TEACHER_SALARY = ifelse(BYA26A < 0, NA, BYA26A)
+)
+
+els %>%
+  ggplot() +
+  geom_point(aes(x=HIGHEST_TEACHER_SALARY,y=LOWEST_TEACHER_SALARY))
+
+
+els %>%
+  filter(!is.na(HIGHEST_TEACHER_SALARY)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=HIGHEST_TEACHER_SALARY), alpha=0.1) +
+  facet_grid(.~SCHOOL_TYPE)
+
+els %>%
+  filter(!is.na(HIGHEST_TEACHER_SALARY)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=HIGHEST_TEACHER_SALARY), alpha=0.1) +
+  facet_grid(.~SCHOOL_TYPE)
+
+els %>%
+  filter(!is.na(HIGHEST_TEACHER_SALARY), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=HIGHEST_TEACHER_SALARY)) +
+  facet_grid(.~SCHOOL_TYPE)
+
+```
+
+- % full-time teachers that are certified: BYA24A/ F1A34A
+```{r}
+# els <- els %>% mutate(
+#   HIGHEST_TEACHER_SALARY = ifelse(BYA24A < 0, NA, BYA24A),
+#   LOWEST_TEACHER_SALARY = ifelse(BYA26A < 0, NA, BYA26A)
+# )
+hist(els$BYA24A - els$F1A34A)
+
+els %>%
+  filter(!is.na(F1A34A)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=F1A34A), alpha=0.1)
+
+els %>%
+  filter(!is.na(F1A34A)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=F1A34A), alpha=0.1)
+
+els %>%
+  filter(!is.na(F1A34A), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=F1A34A))
+
+```
+- % full-time teachers that teach out of field: BYA25A
+```{r}
+# els <- els %>% mutate(
+#   HIGHEST_TEACHER_SALARY = ifelse(BYA24A < 0, NA, BYA24A),
+#   LOWEST_TEACHER_SALARY = ifelse(BYA26A < 0, NA, BYA26A)
+# )
+hist(els$BYA25A)
+
+els %>%
+  filter(!is.na(BYA25A)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=BYA25A), alpha=0.1)
+
+els %>%
+  filter(!is.na(BYA25A)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=BYA25A), alpha=0.1)
+
+els %>%
+  filter(!is.na(BYA25A), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=BYA25A))
+
+```
+- percent of 10th graders with free lunch: BY10FLP
+F1SCFLP
+F1SCFLP
+   1 = "0-5 percent"
+   2 = "6-10 percent"
+   3 = "11-20 percent"
+   4 = "21-30 percent"
+   5 = "31-50 percent"
+   6 = "51-75 percent"
+   7 = "76-100 percent"
+```{r}
+els <- els %>% mutate(
+  FREE_LUNCH_PERC = factor(ifelse(F1SCFLP < 0, NA, F1SCFLP))
+)
+# hist(els$FREE_LUNCH_PERC)
+# els%>% ggplot() + geom_bar(aes(x=FREE_LUNCH_PERC)) + facet_grid(.~SCHOOL_TYPE)
+
+els %>%
+  filter(!is.na(FREE_LUNCH_PERC)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=FREE_LUNCH_PERC))
+
+els %>%
+  filter(!is.na(FREE_LUNCH_PERC)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=FREE_LUNCH_PERC))
+
+els %>%
+  filter(!is.na(FREE_LUNCH_PERC), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=FREE_LUNCH_PERC), position="fill")
+
+```
+
+- computer access
+BYA44A         14195-14197   Computers in administrative offices
+BYA44B         14197-14199   Computers in teacher work rooms
+BYA44C         14199-14201   Computers in classrooms
+BYA44D         14201-14203   Computers in the library media center
+BYA44E         14203-14205   Computers in separate computer lab
+```{r}
+els <- els %>% mutate(
+  COMPUTER_CLASSROOMS = factor(ifelse(BYA44C < 0, NA, BYA44C)),
+  COMPUTER_LABS = factor(ifelse(BYA44E < 0, NA, BYA44E))
+)
+
+
+els %>%
+  filter(!is.na(COMPUTER_CLASSROOMS)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=BYTXCSTD, x=COMPUTER_CLASSROOMS))
+els %>%
+  filter(!is.na(COMPUTER_CLASSROOMS)) %>%
+  ggplot() +
+  geom_boxplot(aes(y=F3ERN2011, x=COMPUTER_CLASSROOMS))
+
+els %>%
+  filter(!is.na(COMPUTER_CLASSROOMS), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=COMPUTER_CLASSROOMS), position = "fill")
+
+
+
+# els %>%
+#   filter(!is.na(COMPUTER_LABS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=COMPUTER_LABS))
+# 
+# els %>%
+#   filter(!is.na(COMPUTER_LABS)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=COMPUTER_LABS))
+# 
+# els %>%
+#   filter(!is.na(COMPUTER_LABS), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=COMPUTER_LABS), position = "fill")
+
+```
+
+BYA40A: paid security
+```{r}
+
+
+els <- els %>% mutate(
+  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A)),
+  FREE_LUNCH_CATEGORIES = case_when(
+    as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
+    as.numeric(FREE_LUNCH_PERC) > 5 ~ ">50%"
+  )
+)
+
+
+# els %>%
+#   filter(!is.na(FREE_LUNCH_CATEGORIES)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=BYTXCSTD, x=FREE_LUNCH_CATEGORIES)) +
+#   facet_grid(.~ SECURITY)
+# els %>%
+#   filter(!is.na(FREE_LUNCH_CATEGORIES)) %>%
+#   ggplot() +
+#   geom_boxplot(aes(y=F3ERN2011, x=FREE_LUNCH_CATEGORIES))+
+#   facet_grid(.~ SECURITY)
+# 
+# els %>%
+#   filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(ED_ATNMT)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=ED_ATNMT, fill=FREE_LUNCH_CATEGORIES), position = "fill")+
+#   facet_grid(.~ SECURITY)
+
+# els%>%
+#   filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(ED_ATNMT)) %>%
+#   ggplot()+
+#   geom_point(aes(y=HIGHEST_TEACHER_SALARY, x=F3ERN2011)) +
+#   facet_grid(.~ED_ATNMT)
+
+els %>%
+  filter(!is.na(F1A37D)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=F1A37D), alpha=0.1)
+
+els %>%
+  filter(!is.na(F1A37D)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=F1A37D), alpha=0.1)
+
+els %>%
+  filter(!is.na(F1A37D), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=F1A37D))
+
+
+```
+
+BYA17A         13787-13789   Agriculture/renewable resource courses offered
+BYA17B         13789-13791   Business courses offered
+BYA17C         13791-13793   Marketing/distribution courses offered
+BYA17D         13793-13795   Health care courses offered
+BYA17E         13795-13797   Public/protective service courses offered
+BYA17F         13797-13799   Construction courses offered
+BYA17G         13799-13801   Mechanics and repair courses offered
+BYA17H         13801-13803   Precisions production courses offered
+BYA17I         13803-13805   Trade/industry/transportation courses offered
+BYA17J         13805-13807   Computer technology courses offered
+BYA17K         13807-13809   Communication technology courses offered
+BYA17L         13809-13811   Other technology courses offered
+BYA17M         13811-13813   Food service and hospitality courses offered
+BYA17N         13813-13815   Child care/education courses offered
+BYA17O         13815-13817   Personal and other services courses offered
+BYA17P         13817-13819   Other occupational courses offered
+BYA17Q         13819-13821   Family/consumer sciences courses offered
+BYA17R         13821-13823   Industrial arts/technology courses offered
+
+```{r}
+els <- els %>% mutate(
+  BYA17A = ifelse( BYA17A<0, NA, BYA17A==1),
+  BYA17B = ifelse( BYA17B<0, NA, BYA17B==1),
+  BYA17C = ifelse( BYA17C<0, NA, BYA17C==1),
+  BYA17D = ifelse( BYA17D<0, NA, BYA17D==1),
+  BYA17E = ifelse( BYA17E<0, NA, BYA17E==1),
+  BYA17F = ifelse( BYA17F<0, NA, BYA17F==1),
+  BYA17G = ifelse( BYA17G<0, NA, BYA17G==1),
+  BYA17H = ifelse( BYA17H<0, NA, BYA17H==1),
+  BYA17I = ifelse( BYA17I<0, NA, BYA17I==1),
+  BYA17J = ifelse( BYA17J<0, NA, BYA17J==1),
+  BYA17K = ifelse( BYA17K<0, NA, BYA17K==1),
+  BYA17L = ifelse( BYA17L<0, NA, BYA17L==1),
+  BYA17M = ifelse(BYA17M<0, NA, BYA17M==1),
+  BYA17N = ifelse(BYA17N<0, NA, BYA17N==1),
+  BYA17O = ifelse(BYA17O<0, NA, BYA17O==1),
+  BYA17P = ifelse(BYA17P<0, NA, BYA17P==1),
+  BYA17Q = ifelse(BYA17Q<0, NA, BYA17Q==1),
+  BYA17R = ifelse(BYA17R<0, NA, BYA17R==1),
+  COURSE_OFFERING_SCORE = BYA17A +
+  BYA17B +
+  BYA17C+
+  BYA17D +
+  BYA17E+
+  BYA17F+
+  BYA17G+
+  BYA17H +
+  BYA17I +
+  BYA17J +
+  BYA17K +
+  BYA17L +
+  BYA17M +
+  BYA17N +
+  BYA17O+
+  BYA17P +
+  BYA17Q +
+  BYA17R 
+)  
+
+hist(els$COURSE_OFFERING_SCORE)
+
+els %>%
+  filter(!is.na(COURSE_OFFERING_SCORE)) %>%
+  ggplot() +
+  geom_point(aes(y=BYTXCSTD, x=COURSE_OFFERING_SCORE))
+
+els %>%
+  filter(!is.na(COURSE_OFFERING_SCORE)) %>%
+  ggplot() +
+  geom_point(aes(y=F3ERN2011, x=COURSE_OFFERING_SCORE))
+
+els %>%
+  filter(!is.na(COURSE_OFFERING_SCORE), !is.na(ED_ATNMT)) %>%
+  ggplot() +
+  geom_boxplot(aes(x=ED_ATNMT, y=COURSE_OFFERING_SCORE))
+```
+
 
