@@ -18,18 +18,18 @@ els_original=els
 
 # Introduction
 ## Context
-Government spending on US education has been a long standing debate. In 1966, James S. Coleman conducted a survey for the federal government to address a section in the Civil Rights Act of 1964 "concerning the lack of availability of equal educational opportunities for individuals by reason of race, color, religion, or national origin." After collecting data on 650,000 students and teachers, he wrote a 700-page report stating that school matters less than family in influencing student outcome. Many took this as a sign that additional spending on education would make little difference. However, he also found evidence of education inequality between rich and poor students. It seems that if the money is spent in the right way, for example, in bridging the gap between school quality, extra spending does make a difference.
+Government spending on US education has been a long standing debate. In 1966, James S. Coleman conducted a survey for the federal government to address a section in the Civil Rights Act of 1964 "concerning the lack of availability of equal educational opportunities for individuals by reason of race, color, religion, or national origin." After collecting data on 650,000 students and teachers, he wrote a 700-page report "Equality of Educational Opportunity" stating that school resources matter less than family in influencing student outcome. Many took this as a sign that additional spending on education would make little difference. However, Coleman also found evidence of the "achievement gap," which illuminates test score disparities between rich and poor students [5]. It seems that if the money is spent in the right way, for example, in bridging the gap between school quality, extra spending does make a difference [1].
 
 ## Literature
-A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds. Another study "School Finance Reform and the Distribution of Student Achievement" draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that money matters as well, leading to improvement in student achievement (measured by test scores) in low income districts.
+The Coleman report continues to spur further studies on school spending and student success. A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds [3]. Another study "School Finance Reform and the Distribution of Student Achievement" from 2018 draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that school finance reforms on spending in low-income school districts matter as well, as they lead to improvement in student achievement, measured by test scores [2].
 
 ## Motivations and Research Questions
-To understand factors that may affect student success, we will investigate student success through high school test scores, level of education attained, and socioeconomic status after entering the work force. We include predictors that fall under the categories of familial/economical, to see if there is credit to Coleman's claims and to identify issues with socioeconomic disparity; and educational, to analyze the effects of school finances. For the educational category, we won't be looking directly at school expenditure and revenue, but rather at variables that could be correlated with expenditure, such as teacher certification, access to textbooks, access to support programs, etc. Since public school revenue is related to local taxes, we'll also be looking at socioeconomic factors on the school level.
+To understand factors that may affect student success, we investigate student success through high school test scores, level of education attained, and socioeconomic status after entering the work force. We include predictors that fall under two categories: familial and educational. For the prior, we evaluate whether there is credit to Coleman's claim that family matters more than school resources. For the latter, we analyze the effects of school finances on student success. For the educational category, we won't be looking directly at school expenditure and revenue since the data is not available in the dataset used. Instead, we will analyze variables that could be correlated with expenditure, such as teacher certification, access to textbooks, and access to support programs. Since public school revenue is related to local taxes, we'll also be looking at socioeconomic factors on the school level.
 
 ## Data
-The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16000 observations on the student level.
+The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16,000 observations on the student level [4].
 
-## Variables
+## Variables and Exploratory Data Analysis
 ### Measures of Success for Research Questions
 1. Standardized test composite in 10th grade
 2. Socioeconomic quartile 7 years after graduation (2011)
@@ -73,7 +73,7 @@ els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSom
 ### Familial Predictors
 - Race
 - Socioeconomic status
-- Family composition
+- Family composition (see Figure 1)
 - Parents' highest level of education
 - Parents' English fluency
 - How far in school parents wants student to go
@@ -166,7 +166,7 @@ els <- els %>% mutate(
 )
 ```
 
-```{r fig.height = 4, fig.width = 7}
+```{r fig.height = 4, fig.width = 7, fig.cap="Figure 1"}
 # els %>%
 #   filter(!is.na(ED_ATNMT), !is.na(FAM_COMP), !is.na(SESQU)) %>%
 #   ggplot() +
@@ -199,7 +199,7 @@ els %>%
 
 ```
 
-For higher levels of educational attainment, the proportion of two-parent families increases, while the proportion of those with a single parent or absent parent decreases.
+For higher levels of educational attainment, the proportion of two-parent families increases, while the proportion of those with a single parent or absent parent decreases. This shows an association between family factors and student success, perhaps somewhat backing part of Coleman's claim. In the following section, we will control for confounding variables and analyze more thoroughly the importance family factors, such as family composition, in comparison to educational ones.
 
 ### Educational Predictors
 - School type (private/public/Catholic)
@@ -214,7 +214,7 @@ For higher levels of educational attainment, the proportion of two-parent famili
 <!-- - highest salary paid to full-time teachers -->
 - Percent of full-time teachers that are state certified
 <!-- - % full-time teachers that teach out of field -->
-- Percent of students with free lunch
+- Percent of students with free lunch (see Figure 2)
 - Has paid security at any time
 <!-- - interaction between percent of students with free lunch and school type -->
 - Percent of 10th graders in college prep program
@@ -334,7 +334,7 @@ els <- els %>% mutate(
 els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%",  "<=30%", "<=50%", "<=75%", ">75%"))
 ```
 
-```{r fig.height = 4, fig.width = 7}
+```{r fig.height = 4, fig.width = 7, fig.cap="Figure 2"}
 els %>%
   filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(LACK_OF_SPACE), !is.na(BYTXCSTD)) %>%
   ggplot() +
@@ -379,19 +379,19 @@ els %>%
 #   facet_grid(.~SESQU)
 ```
 
-Previous literature mentions how increased spending to decrease class sizes helps to bridge the gap between wealthy and poor districts. To represent the wealth of a district, we are using the percentage of students that receive free lunch, since we assume it measures general socioeconomic status of the area of the school. 
+Previous literature mentions how increased spending to decrease class sizes helps to bridge the achievement gap between wealthy and poor districts. To represent the wealth of a district, we are using the percentage of students that receive free lunch, since we assume it measures general socioeconomic status of the area of the school. 
 
 This visualization shows an increased association between lack of space as a learning hindrance and student test scores for schools with more than 75% of students with free lunch, whereas the association seems positive or very small in schools with lower percentages of students with free lunch. This might suggest a magnified correlation between these two variables in poorer districts, aligning with previous findings.
 
 \newpage
 ## Sources
-<https://www.npr.org/sections/ed/2016/04/25/468157856/can-more-money-fix-americas-schools>
+[1] <https://www.npr.org/sections/ed/2016/04/25/468157856/can-more-money-fix-americas-schools>
 
-<https://equitablegrowth.org/can-school-finance-reforms-improve-student-achievement/>
+[2] <https://equitablegrowth.org/can-school-finance-reforms-improve-student-achievement/>
 
-<https://www.nber.org/papers/w20847>
+[3] <https://www.nber.org/papers/w20847>
 
-<https://fordhaminstitute.org/national/commentary/education-longitudinal-study-2002>
+[4] <https://fordhaminstitute.org/national/commentary/education-longitudinal-study-2002>
 
-<https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/>
+[5] <https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/>
 
