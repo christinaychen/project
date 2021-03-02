@@ -73,7 +73,7 @@ els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSom
 ### Familial Predictors
 - Race
 - Socioeconomic status
-- Family composition (see Figure 1)
+- Family composition (see below)
 - Parents' highest level of education
 - Parents' English fluency
 - How far in school parents wants student to go
@@ -166,7 +166,7 @@ els <- els %>% mutate(
 )
 ```
 
-```{r fig.height = 4, fig.width = 7, fig.cap="Figure 1"}
+```{r fig.height = 4, fig.width = 7}
 # els %>%
 #   filter(!is.na(ED_ATNMT), !is.na(FAM_COMP), !is.na(SESQU)) %>%
 #   ggplot() +
@@ -214,7 +214,7 @@ For higher levels of educational attainment, the proportion of two-parent famili
 <!-- - highest salary paid to full-time teachers -->
 - Percent of full-time teachers that are state certified
 <!-- - % full-time teachers that teach out of field -->
-- Percent of students with free lunch (see Figure 2)
+- Percent of students with free lunch (see below)
 - Has paid security at any time
 <!-- - interaction between percent of students with free lunch and school type -->
 - Percent of 10th graders in college prep program
@@ -334,7 +334,7 @@ els <- els %>% mutate(
 els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%",  "<=30%", "<=50%", "<=75%", ">75%"))
 ```
 
-```{r fig.height = 4, fig.width = 7, fig.cap="Figure 2"}
+```{r fig.height = 4, fig.width = 7}
 els %>%
   filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(LACK_OF_SPACE), !is.na(BYTXCSTD)) %>%
   ggplot() +
