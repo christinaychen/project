@@ -1,5 +1,5 @@
 ---
-title: "Analysis of Student Success"
+title: "Introduction"
 author: "Christina Chen"
 date: "2/24/2021"
 output: pdf_document
@@ -24,7 +24,7 @@ Government spending on US education has been a long standing debate. In 1966, Ja
 The Coleman report continues to spur further studies on school spending and student success. A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds [3]. Another study "School Finance Reform and the Distribution of Student Achievement" from 2018 draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that school finance reforms on spending in low-income school districts matter as well, as they lead to improvement in student achievement, measured by test scores [2].
 
 ## Motivations and Research Questions
-To understand factors that may affect student success, we investigate student success through high school test scores, level of education attained, and socioeconomic status after entering the work force. We include predictors that fall under two categories: familial and educational. For the prior, we evaluate whether there is credit to Coleman's claim that family matters more than school resources. For the latter, we analyze the effects of school finances on student success. For the educational category, we won't be looking directly at school expenditure and revenue since the data is not available in the dataset used. Instead, we will analyze variables that could be correlated with expenditure, such as teacher certification, access to textbooks, and access to support programs. Since public school revenue is related to local taxes, we'll also be looking at socioeconomic factors on the school level.
+To understand factors that may affect student success, we investigate student success through high school test scores, level of education attained, and socioeconomic status after entering the work force. We include predictors that fall under two categories: familial and educational. For the prior, we evaluate whether there is credit to Coleman's claim that family matters more than school resources. For the latter, we analyze the effects of school finances on student success. For the educational category, we will not be looking directly at school expenditure and revenue since the data is not available in the dataset used. Instead, we will analyze variables that could be correlated with expenditure, such as teacher certification, access to textbooks, and access to support programs. Since public school revenue is related to local taxes, we will also be looking at socioeconomic factors on the school level.
 
 ## Data
 The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16,000 observations on the student level [4].
@@ -75,7 +75,7 @@ els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSom
 - Socioeconomic status
 - Family composition (see below)
 - Parents' highest level of education
-- Parents' English fluency
+<!-- - Parents' English fluency -->
 - How far in school parents wants student to go
 - Has a computer at home
 - Has Internet access
@@ -99,8 +99,7 @@ els <- els %>% mutate(
   BYFCOMP = na_if(BYFCOMP, BYFCOMP<0),
   FAM_COMP = case_when(
     BYFCOMP == 1 | BYFCOMP == 2 | BYFCOMP == 3 | BYFCOMP == 4 ~ "Two Parents",
-    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 ~ "Single Parent",
-    BYFCOMP == 9 ~ "Absent Parent"
+    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 | BYFCOMP == 9~ "Single/Absent Parent"
   )
 )
 
@@ -222,6 +221,7 @@ For higher levels of educational attainment, the proportion of two-parent famili
 - Learning is hindered by poor heating/air/light
 - Learning is hindered by lack of space
 - Learning is hindered by lack of supplies/texts
+- Teachers' level of access to tech
 
 ```{r}
 els <- els %>% mutate(
@@ -320,18 +320,36 @@ els <- els %>% mutate(
 
 
 els <- els %>% mutate(
-  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A)),
-  FREE_LUNCH_CATEGORIES = case_when(
-    as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
-    as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
-    as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
-    as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
-    as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">75%"
-  )
+  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A))
+  # FREE_LUNCH_CATEGORIES = case_when(
+  #   as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
+  #   as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
+  #   as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
+  #   as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
+  #   as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">75%"
+  # )
 
 )
 
+# els <- els %>% mutate(
+#   FREE_LUNCH_CATEGORIES = case_when(
+#     as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
+#     as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
+#     as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
+#     # as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
+#     as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">50%"
+#   )
+# )
+
 els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%",  "<=30%", "<=50%", "<=75%", ">75%"))
+
+
+els %>%
+  ggplot() +
+  geom_histogram(aes(x=BYTXCSTD)) +
+  facet_grid(.~SCHOOL_TYPE)
+
+els %>% group_by(SCHOOL_TYPE) %>% summarise(mean_test = mean(BYTXCSTD), sd_test = sd(BYTXCSTD))
 ```
 
 ```{r fig.height = 4, fig.width = 7}

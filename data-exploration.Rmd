@@ -24,6 +24,7 @@ els_original=els
 # hist(student_data$BYTXCQU)
 hist(els$BYTXCSTD)
 # some scores below 0 -> should remove
+
 ```
 
 - employment income 7 years after graduation (2011): F3ERN2011
@@ -344,16 +345,18 @@ BYPARASP
 els <- els %>% mutate(
   PT_PUSH = na_if(BYPARASP, BYPARASP<0),
   PT_PUSH = case_when(
-    PT_PUSH == 1 ~ "Less than HS Grad",
-    PT_PUSH == 2 ~ "GED",
+    PT_PUSH == 1 | PT_PUSH ==2 ~ "Some HS/GED",
     PT_PUSH == 3 | BYPARED == 4 ~ "Any college (2 or 4 year)",
     PT_PUSH == 5 ~ "Graduate from college",
     PT_PUSH == 6 ~ "Master's",
     PT_PUSH == 7 ~ "Advanced Degree"
   )
 )
-els$PT_PUSH = factor(els$PT_PUSH, levels=c("Less than HS Grad", "GED", "Any college (2 or 4 year)", "Graduate from college", "Master's", "Advanced Degree"))
+els$PT_PUSH = factor(els$PT_PUSH, levels=c("Some HS/GED", "Any college (2 or 4 year)", "Graduate from college", "Master's", "Advanced Degree"))
 
+els %>%
+  ggplot() +
+  geom_bar(aes(x=PT_PUSH))
 # hist(els$BYINCOME)
 
 els %>%
@@ -692,16 +695,18 @@ els <- els %>% mutate(
   BYA50I_1 = ifelse( BYA50I<0,NA, BYA50I),
   BYA50J_1 = ifelse( BYA50J<0, NA, BYA50J),
   BYA50K_1 = ifelse(BYA50K<0, NA, BYA50K),
-  LEARNING_HINDERED_CONDITIONS = 2*BYA50A_1 + 2*BYA50B_1 + BYA50C_1 +BYA50D_1+ 2*BYA50E_1+BYA50F_1,
-  LEARNING_HINDERED_LACK_SUPPLIES = 2*BYA50G_1+ BYA50H_1+BYA50K_1,
-  LEARNING_HINDERED = LEARNING_HINDERED_CONDITIONS + LEARNING_HINDERED_LACK_SUPPLIES,
-  LEARNING_HINDERED_QU = case_when(
-    LEARNING_HINDERED <=15 ~ 1,
-    LEARNING_HINDERED <=20 ~ 2,
-    LEARNING_HINDERED <=27 ~ 3,
-    LEARNING_HINDERED <=49 ~ 4
-  ),
-  LEARNING_HINDERED_QU = factor(LEARNING_HINDERED_QU)
+  LEARNING_HINDERED_CONDITIONS = BYA50A_1 + BYA50B_1,
+  LEARNING_HINDERED_POOR_FACILITIES = BYA50C_1+BYA50D_1+BYA50F_1,
+  LEARNING_HINDERED_LACK_SPACE = BYA50E_1,
+  LEARNING_HINDERED_LACK_SUPPLIES = 2*BYA50G_1+ BYA50H_1+BYA50I+BYA50K_1,
+  # LEARNING_HINDERED = LEARNING_HINDERED_CONDITIONS + LEARNING_HINDERED_LACK_SUPPLIES,
+  # LEARNING_HINDERED_QU = case_when(
+  #   LEARNING_HINDERED <=15 ~ 1,
+  #   LEARNING_HINDERED <=20 ~ 2,
+  #   LEARNING_HINDERED <=27 ~ 3,
+  #   LEARNING_HINDERED <=49 ~ 4
+  # ),
+  # LEARNING_HINDERED_QU = factor(LEARNING_HINDERED_QU)
 )
 
 els %>%
@@ -814,6 +819,22 @@ BYA41K         14151-14153   Teachers have access to laptop computer
 BYA41L         14153-14155   Teachers have access to Internet
 BYA41M         14155-14157   Teachers have access to computer printer
 
+
+BYA42A         14157-14159   Teachers use computers as instructional tools
+BYA42B         14159-14161   Teachers use computers to plan lessons
+BYA42C         14161-14163   Teachers use computers for professional development courses
+BYA42D         14163-14165   Teachers use computers to communicate with colleagues
+BYA42E         14165-14167   Teachers use computers to access best practices
+BYA42F         14167-14169   Teachers use computers to communicate with parents
+BYA42G         14169-14171   Teachers use computers to post homework
+BYA42H         14171-14173   Teachers/staff use computers to communicate with each other
+BYA42I         14173-14175   Teachers use computers to teach job skills
+
+BYA43A         14185-14187   Teacher training on use of new software
+BYA43B         14187-14189   Teacher training on use of Internet
+BYA43C         14189-14191   Teacher training on using computers to teach skills
+BYA43D         14191-14193   Teacher training on integrating computer into class
+BYA43E         14193-14195   Teacher training on basic computer literacy
 ```{r}
 
 els <- els %>% mutate(
@@ -1003,22 +1024,37 @@ els <- els %>% mutate(
   FREE_LUNCH_PERC = factor(ifelse(F1SCFLP < 0, NA, F1SCFLP))
 )
 # hist(els$FREE_LUNCH_PERC)
-# els%>% ggplot() + geom_bar(aes(x=FREE_LUNCH_PERC)) + facet_grid(.~SCHOOL_TYPE)
+els%>% ggplot() + geom_bar(aes(x=FREE_LUNCH_PERC))
+
+
+
+els <- els %>% mutate(
+  FREE_LUNCH_CATEGORIES = case_when(
+    as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
+    as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
+    as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
+    # as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
+    as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">50%"
+  )
+
+)
+els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%",  "<=30%", "<=50%",  ">50%"))
 
 els %>%
-  filter(!is.na(FREE_LUNCH_PERC)) %>%
+  filter(!is.na(FREE_LUNCH_CATEGORIES)) %>%
   ggplot() +
-  geom_boxplot(aes(y=BYTXCSTD, x=FREE_LUNCH_PERC))
+  geom_boxplot(aes(y=BYTXCSTD, x=FREE_LUNCH_CATEGORIES))
 
 els %>%
-  filter(!is.na(FREE_LUNCH_PERC)) %>%
+  filter(!is.na(FREE_LUNCH_CATEGORIES)) %>%
   ggplot() +
-  geom_boxplot(aes(y=F3ERN2011, x=FREE_LUNCH_PERC))
+  geom_boxplot(aes(y=F3ERN2011, x=FREE_LUNCH_CATEGORIES))
 
 els %>%
-  filter(!is.na(FREE_LUNCH_PERC), !is.na(ED_ATNMT)) %>%
+  filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(ED_ATNMT)) %>%
   ggplot() +
-  geom_bar(aes(x=ED_ATNMT, fill=FREE_LUNCH_PERC), position="fill")
+  geom_bar(aes(x=ED_ATNMT, fill=FREE_LUNCH_CATEGORIES), position="fill")
+
 
 ```
 
