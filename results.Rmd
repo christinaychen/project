@@ -1,12 +1,26 @@
+---
+title: "Results"
+author: "Christina Chen"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(ggplot2)
+library(MASS)
+library(lme4)
+library(mice)
+
+# data file too large to push to git - split into two halfs in split_data.R
+student_data1 = read.csv("els_student_first_half.csv")
+student_data2 = read.csv("els_student_second_half.csv")
+els = rbind(student_data1, student_data2)
+els_original=els
+```
+
 
 ```{r}
-# BYTXCQU
-# F3SESQU
-# F3SES
-# els <- els %>%
-#   mutate(F3ERN2011_ORIGINAL = F3ERN2011,
-#          F3ERN2011 = ifelse(F3ERN2011 < 0, NA, F3ERN2011),
-#          F3ERN2011 = log(F3ERN2011+0.1))
 
 els <- els %>%
   mutate(TEST_COMP_QU = ifelse(BYTXCQU < 0, NA, BYTXCQU),
@@ -33,23 +47,8 @@ els <- els %>% mutate(
 )
 els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSome Undergrad", "Bachelors", "Master's/\nPost-Bacc. Cert.", "PhD"))
 
-# els %>%
-#   filter(!is.na(ED_ATNMT)) %>%
-#   ggplot() +
-#     geom_bar(aes(x=ED_ATNMT)) +
-#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
-#   labs(x="Education Attained", y="Count")
 ```
 
-### Familial Predictors
-- Race
-- Socioeconomic status
-- Family composition (see below)
-- Parents' highest level of education
-- Parents' English fluency
-- How far in school parents wants student to go
-- Has a computer at home
-- Has Internet access
 ```{r}
 # AI/AN = American Indian/Alaska Native
 # API = Asian, Hawaii/Pacific Islander
@@ -142,42 +141,14 @@ els <- els %>% mutate(
 
 els <- els %>% mutate(
   HAS_INTERNET = ifelse(BYS84D < 0, NA, BYS84D),
-  HAS_INTERNET=factor(HAS_INTERNET)
+  HAS_INTERNET=factor(HAS_INTERNET),
+  
+  COMP_AND_INTERNET = HAS_INTERNET == 1 & COMP_HOME == 1
 )
 
-# els <- els %>% mutate(
-#   PT_EXPT_SCSS = ifelse(BYS27I < 0, NA, BYS27I),
-#   PT_EXPT_SCSS=case_when(
-#     PT_EXPT_SCSS == 1 ~ "Strongly Agree",
-#     PT_EXPT_SCSS == 2 ~ "Agree",
-#     PT_EXPT_SCSS == 3 ~ "Disagree",
-#     PT_EXPT_SCSS == 4 ~ "Strongly Disagree"
-#   )
-# )
 ```
 
 
-### Educational Predictors
-- School type (private/public/Catholic)
-<!-- - School urbanicity (urban, suburban, rural) -->
-<!-- - dropout prevention program offered -->
-- Programs for pregnant girls/teenage mothers offered
-<!-- - Vocational counseling/services/programs offered -->
-<!-- - Learning hindrance score -->
-<!--   - poor conditions: buildings (double weighted), heating/air/light (double weighted), science labs, fine arts facilities, lack of space (double weighted), library -->
-<!--   - lack of supplies: texts (double weighted), computers, multi-media, poor tech equipment -->
-<!-- - teacher access to technology -->
-<!-- - highest salary paid to full-time teachers -->
-- Percent of full-time teachers that are state certified
-<!-- - % full-time teachers that teach out of field -->
-- Percent of students with free lunch (see below)
-- Has paid security at any time
-<!-- - interaction between percent of students with free lunch and school type -->
-- Percent of 10th graders in college prep program
-- Learning is hindered by poor building conditions
-- Learning is hindered by poor heating/air/light
-- Learning is hindered by lack of space
-- Learning is hindered by lack of supplies/texts
 
 ```{r}
 els <- els %>% mutate(
@@ -225,86 +196,56 @@ els <- els %>% mutate(
   BYA50J_1 = ifelse( BYA50J<0, NA, BYA50J),
   BYA50K_1 = ifelse(BYA50K<0, NA, BYA50K),
   LH_LACK_OF_SPACE = factor(case_when(
-    BYA50E_1 <= 2 ~ "No",
-    # BYA50E_1 <= 2 ~ "Some",
+    BYA50E_1 <= 1 ~ "No",
     BYA50E_1 <= 4 ~ "Yes"
   ), levels=c("No",  "Yes")),
   LH_POOR_BUILDINGS = factor(case_when(
-    BYA50A_1 <= 2 ~ "No",
-    # BYA50A_1 <= 2 ~ "Some",
+    BYA50A_1 <= 1 ~ "No",
     BYA50A_1 <= 4 ~ "Yes"
   ), levels=c("No",  "Yes")),
   LH_POOR_HEATING_AIR_LIGHT = factor(case_when(
-    BYA50B_1 <= 2 ~ "No",
+    BYA50B_1 <= 1 ~ "No",
     # BYA50B_1 <= 2 ~ "Some",
     BYA50B_1 <= 4 ~ "Yes"
   ), levels=c("No", "Yes")),
   LH_LACK_TEXT = factor(case_when(
-    BYA50G_1 <= 2 ~ "No",
-    # BYA50G_1 <= 2 ~ "Some",
+    BYA50G_1 <= 1 ~ "No",
     BYA50G_1 <= 4 ~ "Yes"
   ), levels=c("No",  "Yes")),
   LH_LACK_COMPUTERS = factor(case_when(
-    BYA50H_1 <= 2 ~ "No",
-    # BYA50H_1 <= 2 ~ "Some",
+    BYA50H_1 <= 1 ~ "No",
     BYA50H_1 <= 4 ~ "Yes"
   ), levels=c("No", "Yes")),
   LH_LACK_TECH_FACILITIES = factor(case_when(
-    BYA50K_1 <= 2 ~ "No",
-    # BYA50K_1 <= 2 ~ "Some",
+    BYA50K_1 <= 1 ~ "No",
     BYA50K_1 <= 4 ~ "Yes"
   ), levels=c("No", "Yes")),
   LH_POOR_LIB = factor(case_when(
-    BYA50F_1 <= 2 ~ "No",
-    # BYA50F_1 <= 2 ~ "Some",
+    BYA50F_1 <= 1 ~ "No",
     BYA50F_1 <= 4 ~ "Yes"
   ), levels=c("No", "Yes")),
   LH_POOR_SCIENCE_LAB = factor(case_when(
-    BYA50C_1 <= 2 ~ "No",
-    # BYA50C_1 <= 2 ~ "Some",
+    BYA50C_1 <= 1 ~ "No",
     BYA50C_1 <= 4 ~ "Yes"
   ), levels=c("No","Yes")),
   LH_POOR_ARTS_FACILITIES = factor(case_when(
-    BYA50D_1 <= 2 ~ "No",
-    # BYA50D_1 <= 2 ~ "Some",
+    BYA50D_1 <= 1 ~ "No",
     BYA50D_1 <= 4 ~ "Yes"
   ), levels=c("No", "Yes")),
   LH_POOR_MULTIMEDIA = factor(case_when(
-    BYA50I_1 <= 2 ~ "No",
-    # BYA50D_1 <= 2 ~ "Some",
+    BYA50I_1 <= 1 ~ "No",
     BYA50I_1 <= 4 ~ "Yes"
   ), levels=c("No", "Yes")),
-  # LH_POOR_CONDITIONS = (LH_POOR_BUILDINGS=="Yes") + (LH_POOR_HEATING_AIR_LIGHT=="Yes") + (LH_LACK_OF_SPACE == "Yes"),
-  # LH_POOR_FACILITIES = LH_POOR_ARTS_FACILITIES=="Yes" + LH_POOR_SCIENCE_LAB=="Yes" + LH_POOR_LIB == "Yes",
-  # LH_POOR_TECH = LH_LACK_TECH_FACILITIES == "Yes" + LH_POOR_MULTIMEDIA == "Yes" + LH_LACK_COMPUTERS == "Yes",
   
-  LEARNING_HINDERED_POOR_CONDITIONS_SCORE = BYA50A_1 + BYA50B_1 + BYA50E_1,
-  LEARNING_HINDERED_LACK_SUPPLIES_SCORE = BYA50G_1,
-  LEARNING_HINDERED_POOR_TECH_SCORE = BYA50D_1 + BYA50I_1 + BYA50H_1,
+  LH_POOR_FACILITIES = LH_POOR_ARTS_FACILITIES=="Yes" | LH_POOR_SCIENCE_LAB=="Yes" | LH_POOR_LIB == "Yes",
+  LH_POOR_TECH = LH_LACK_TECH_FACILITIES == "Yes" | LH_POOR_MULTIMEDIA == "Yes" | LH_LACK_COMPUTERS == "Yes",
+  LH_POOR_BUILDINGS_AIR = LH_POOR_BUILDINGS == "Yes" | LH_POOR_HEATING_AIR_LIGHT == "Yes"
+  
+  # LEARNING_HINDERED_POOR_CONDITIONS_SCORE = BYA50A_1 + BYA50B_1 + BYA50E_1,
+  # LEARNING_HINDERED_LACK_SUPPLIES_SCORE = BYA50G_1,
+  # LEARNING_HINDERED_POOR_TECH_SCORE = BYA50D_1 + BYA50I_1 + BYA50H_1,
   # LEARNING_HINDERED_LACK_SPACE_SCORE = BYA50E_1,
-  LEARNING_HINDERED_POOR_FACILITIES_SCORE = BYA50D_1+BYA50C_1+BYA50F_1
-  # LEARNING_HINDERED = LEARNING_HINDERED_CONDITIONS + LEARNING_HINDERED_LACK_SUPPLIES,
-  # LEARNING_HINDERED_QU = case_when(
-  #   LEARNING_HINDERED <=4 ~ 1,
-  #   LEARNING_HINDERED <6 ~ 2,
-  #   LEARNING_HINDERED <=8 ~ 3,
-  #   LEARNING_HINDERED <=15 ~ 4
-  # ),
-  # LEARNING_HINDERED_QU = factor(LEARNING_HINDERED_QU),
-  # LEARNING_HINDERED_CONDITIONS_QU = case_when(
-  #   LEARNING_HINDERED_CONDITIONS <=3 ~ 1,
-  #   LEARNING_HINDERED_CONDITIONS <=4 ~ 2,
-  #   LEARNING_HINDERED_CONDITIONS <=6 ~ 3,
-  #   LEARNING_HINDERED_CONDITIONS <=12 ~ 4
-  # ),
-  # LEARNING_HINDERED_CONDITIONS_QU = factor(LEARNING_HINDERED_CONDITIONS_QU),
-  # LEARNING_HINDERED_LACK_SUPPLIES_QU = case_when(
-  #   LEARNING_HINDERED_LACK_SUPPLIES <=4 ~ 1,
-  #   LEARNING_HINDERED_LACK_SUPPLIES <=6 ~ 2,
-  #   LEARNING_HINDERED_LACK_SUPPLIES <=8 ~ 3,
-  #   LEARNING_HINDERED_LACK_SUPPLIES <=16 ~ 4
-  # ),
-  # LEARNING_HINDERED_LACK_SUPPLIES_QU = factor(LEARNING_HINDERED_LACK_SUPPLIES_QU)
+  # LEARNING_HINDERED_POOR_FACILITIES_SCORE = BYA50D_1+BYA50C_1+BYA50F_1
 )
 
 els <- els %>% mutate(
@@ -432,25 +373,12 @@ els <- els %>%
     !(FREE_LUNCH_CATEGORIES == "<=30%" |  FREE_LUNCH_CATEGORIES == "<=5%" | FREE_LUNCH_CATEGORIES == "<=50%")
   )
 
-els_new <- els[,c("SCHOOL_TYPE", "RACE", "FAM_COMP", "SES", "PT_ED", "PT_PUSH", "COMP_HOME", "HAS_INTERNET", "TEACHER_TECH_ACCESS",  "PERC_SOPH_COLLEGE_PREP", "LOWEST_TEACHER_SALARY_THOUSANDS", "TEST_COMP", "SESQU_2011", "DROPPED_OUT", "ED_ATNMT_BACHELORS", "PT_ED_YEARS", "PT_PUSH_YEARS", "SES_2011", 
-                  "BYA50A_1",
-  "BYA50B_1",
-  "BYA50C_1",
-  "BYA50D_1",
-  "BYA50E_1",
-  "BYA50F_1",
-  "BYA50G_1",
-  "BYA50H_1",
-  "BYA50K_1", "FREE_LUNCH_CATEGORIES", "FREE_LUNCH_MAJ"
-  #                 "LEARNING_HINDERED_POOR_CONDITIONS_SCORE" ,
-  # "LEARNING_HINDERED_LACK_SUPPLIES_SCORE",
-  # "LEARNING_HINDERED_POOR_TECH_SCORE",
-  # "LEARNING_HINDERED_LACK_SPACE_SCORE",
-  # "LEARNING_HINDERED_POOR_FACILITIES_SCORE"
+els_new <- els[,c("SCHOOL_TYPE", "RACE", "FAM_COMP", "SES", "PT_ED", "PT_PUSH", "COMP_AND_INTERNET", "TEACHER_TECH_ACCESS",  "PERC_SOPH_COLLEGE_PREP", "LOWEST_TEACHER_SALARY_THOUSANDS", "TEST_COMP", "SESQU_2011", "DROPPED_OUT", "ED_ATNMT_BACHELORS", "PT_ED_YEARS", "PT_PUSH_YEARS", "SES_2011", 
+                  "LH_LACK_OF_SPACE", "LH_POOR_BUILDINGS", "LH_POOR_HEATING_AIR_LIGHT", "LH_LACK_TEXT", "LH_POOR_FACILITIES", "LH_POOR_TECH", "FREE_LUNCH_CATEGORIES", "FREE_LUNCH_MAJ"
   )]
 
 # https://stats.idre.ucla.edu/r/faq/how-do-i-perform-multiple-imputation-using-predictive-mean-matching-in-r/
-# els_imputed <- mice(els_new, m=1, maxit = 50, seed = 500, method="pmm")
+els_imputed <- mice(els_new, m=1, maxit = 50, seed = 500, method="pmm")
 
 ```
 
@@ -459,7 +387,7 @@ els_new <- els[,c("SCHOOL_TYPE", "RACE", "FAM_COMP", "SES", "PT_ED", "PT_PUSH", 
 els_complete <- complete(els_imputed, 1)
 ```
 
-# Methodology
+# Results
 
 Due to the number of variables used in the models, there are many observations that have missing data in at least one of the variables. Therefore, we use the `mice` package to impute the data using the predictive mean-matching method.
 
@@ -487,90 +415,28 @@ Our first measure of student success is standardized test composite score, which
 OLS models have model assumptions of independence, normality, homoscedasticity (constant variance), and linearity between predictors and the response. Since each of the observations in our data comes from a single student, the independence assumption is satisfied. To assess the other assumptions and multicollinearity, model diagnostics are analyzed in the Appendix.
 
 ```{r}
-# test_model_family = lm(BYTXCSTD ~ RACE + FAM_COMP + SES + PT_ED + PT_PUSH + COMP_HOME + HAS_INTERNET, data = els_complete)
-# summary(test_model_family)
-# 
-# plot(test_model_family)
-# 
-# 
-# # els$bad_conditions = els$LACK_OF_SPACE=="Yes" | els$POOR_BUILDINGS=="Yes" | els$POOR_HEATING_AIR_LIGHT =="Yes"
-# test_model_school = lm(BYTXCSTD ~ SCHOOL_TYPE+SCHOOL_URBAN+DROPOUT_PREV_PGM+VOCATIONAL_PGM + TEACHER_TECH_ACCESS*FREE_LUNCH_CATEGORIES+TEACHER_TRAINING_TECH  + PERC_SOPH_COLLEGE_PREP+LOWEST_TEACHER_SALARY_THOUSANDS+LH_POOR_BUILDINGS+LH_POOR_HEATING_AIR_LIGHT+LH_LACK_TEXT+LH_LACK_OF_SPACE+LH_LACK_COMPUTERS+LH_LACK_TECH_FACILITIES+LH_POOR_LIB+LH_POOR_SCIENCE_LAB+LH_POOR_ARTS_FACILITIES, data = els, na.action=na.omit)
-# summary(test_model_school)
-# 
-# car::vif(test_model_school)
-# plot(test_model_school)
 
-# els <- els %>%
-#   mutate(
-#     PT_ED_YEARS_SQ = PT_ED_YEARS^2,
-#     PT_PUSH_YEARS_SQ = PT_PUSH_YEARS^2
-#   )
-
-# els <- els %>%
-#   mutate(
-#     PT_BACHELORS = PT_ED_YEARS >=8,
-#     PT_PUSH_BACHELORS = PT_PUSH_YEARS >= 8
-#   )
-
-# test_model_both = lm(TEST_COMP ~ SCHOOL_TYPE+SCHOOL_URBAN+DROPOUT_PREV_PGM+VOCATIONAL_PGM  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + LIBRARY_COMPUTER_LAB + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +LH_POOR_BUILDINGS+LH_POOR_HEATING_AIR_LIGHT+LH_LACK_TEXT+LH_LACK_OF_SPACE+LH_LACK_COMPUTERS+LH_POOR_LIB + FREE_LUNCH_CATEGORIES, data = els_complete)
-# summary(test_model_both)
-# els_complete$LEARNING_HINDERED_POOR_CONDITIONS_SCORE1 = els_complete$LEARNING_HINDERED_POOR_CONDITIONS_SCORE - els_complete$LEARNING_HINDERED_LACK_SPACE_SCORE
-
-
-
-test_model_both = lm(TEST_COMP ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +BYA50A_1+
-  BYA50B_1+
-  BYA50C_1+
-  BYA50D_1+
-  BYA50E_1*FREE_LUNCH_MAJ+
-  BYA50F_1+
-  BYA50G_1+
-  BYA50H_1+
-  BYA50K_1, data = els_complete)
+test_model_both = lm(TEST_COMP ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       LH_LACK_OF_SPACE*FREE_LUNCH_MAJ + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
 summary(test_model_both)
 # View(els[15110,c("SCHOOL_TYPE", "SCHOOL_URBAN","DROPOUT_PREV_PGM","VOCATIONAL_PGM","POOR_BUILDINGS","POOR_HEATING_AIR_LIGHT","LACK_TEXT","FREE_LUNCH_CATEGORIES","LACK_OF_SPACE","SECURITY", "RACE","FAM_COMP","SES","PT_ED", "PT_PUSH","COMP_HOME","HAS_INTERNET")])
 
 
 # SENSITIVITY ANALYSSI
-test_model_both = lm(TEST_COMP ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +BYA50A_1*FREE_LUNCH_MAJ+
-  BYA50B_1+
-  BYA50C_1+
-  BYA50D_1+
-  BYA50E_1+
-  BYA50F_1+
-  BYA50G_1+
-  BYA50H_1+
-  BYA50K_1, data = els_complete)
-summary(test_model_both)
+# test_model_both = lm(TEST_COMP ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +BYA50A_1*FREE_LUNCH_MAJ+
+#   BYA50B_1+
+#   BYA50C_1+
+#   BYA50D_1+
+#   BYA50E_1+
+#   BYA50F_1+
+#   BYA50G_1+
+#   BYA50H_1+
+#   BYA50K_1, data = els_complete)
+# summary(test_model_both)
 ```
 
 
 ## Socioeconomic Status
-
-Another measure of student success is socioeconomic standing after leaving school. We analyze the student's SES quantile 9 years after the base year of when the student is in 10th grade. We performed sensitivity analysis with linear regression of the SES measure itself, but the model performed poorly. In addition, it is easier to interpret the outcome as quantiles, since the data source does not make it clear how the SES quantifications are calculated. Therefore, since the outcome is an ordinal categorical variable, we use ordinal logistic regression as follows:
-
-$$
-\begin{align*}
-logit(P(\text{SES quantile} \leq i)) = &\beta_0 + \beta_11(\text{school type=private}) + \beta_21(\text{school type=public}) +
-+
-&\beta_3 1(\text{race=Mixed}) + \beta_4 1(\text{race=API}) + \beta_5 1(\text{race=Black}) + 
-\beta_{6} 1(\text{race=Hispanic}) + \beta_{7} 1(\text{race=White}) +
-\beta_{8} 1(\text{family composition=two parents}) +  \beta_{9} \text{SES} \\+
-&\beta_{10}(\text{parents' # years ed.}) + \beta_{13}(\text{# years ed. parents desire for student}) + \beta_{16}1(\text{has computer at home}) + \beta_{14}1(\text{has internet at home}) \\
-+ &\beta_{15}(\text{teachers' tech access score}) + \beta_{16}1(\text{library has computer lab})
-+\beta_{17}(\text{% sophomores in college prep program}) + \beta_{18}(\text{lowest teacher salary (thousands)}) \\
-+ & \beta_{19}(\text{learning hindered by poor buildings}) + \beta_{20}(\text{learning hindered by poor heating/air/light}) + \beta_{21}1(\text{learning hindered by poor science labs}) \\+& \beta_{22}1(\text{learning hindered by poor fine arts facilities})+ \beta_{23}1(\text{learning hindered by lack of space})+ \beta_{24}1(\text{learning hindered by poor library})  \\
-+& \beta_{25}1(\text{learning hindered by lack of text/supplies}) + \beta_{26}1(\text{learning hindered by too few computers}) \\
-+& \beta_{27}1(\text{learning hindered by lack of tech equipment})+\\
-
-+& \beta_{31}1(\text{free lunch percentage}\leq 30%)+ \beta_{32}1(\text{free lunch percentage} \leq 50%)+ \beta_{33}1(\text{free lunch percentage}\leq 75%)+ \beta_{34}1(\text{free lunch percentage} > 75%)\\
-\forall i\in{1,2,3,4}
-\end{align*}
-$$
-<!-- https://bookdown.org/mpfoley1973/data-sci/ordinal-logistic-regression.html -->
-
-Ordinal regression has four assumptions: response variable is ordinal, explanatory variables are continuous or categorical, no multicollinearity, and that odds are proportional. The response variable is ordinal because of the nature of quantiles. All explanatory variables used are continuous or categorical. The variables that have an ordinal nature are accounted for by making them numerical or treating them as categorical variables. Multicollinearity is tested for using VIF, and a full likelihood ratio test is used to test for proportionality (see Appendix).
-
 ```{r}
 # https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
 # ses_model_family = polr(SESQU_2011 ~ RACE + FAM_COMP + SES + PT_ED + PT_PUSH + COMP_HOME + HAS_INTERNET, data = els, Hess = TRUE)
@@ -580,15 +446,8 @@ Ordinal regression has four assumptions: response variable is ordinal, explanato
 # (ctable <- cbind(ctable, "p value" = p))
 
 # https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
-ses_model = polr(SESQU_2011 ~ SCHOOL_TYPE + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +BYA50A_1+
-  BYA50B_1+
-  BYA50C_1+
-  BYA50D_1+
-  BYA50E_1*FREE_LUNCH_MAJ+
-  BYA50F_1+
-  BYA50G_1+
-  BYA50H_1+
-  BYA50K_1, data = els, Hess = TRUE)
+ses_model = polr(SESQU_2011 ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       LH_LACK_OF_SPACE*FREE_LUNCH_MAJ + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, Hess = TRUE)
 ses_model_summary = summary(ses_model)
 ctable <- coef(ses_model_summary)
 p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
@@ -603,10 +462,6 @@ is_sig <- p <= 0.05
 # sensitivy analysis with including test composite
 
 ```
-
-
-
-
 
 
 
@@ -674,15 +529,8 @@ The assumptions for logistic regression are independence, no multicollinearity, 
 
 
 
-ed_model <- glm(DROPPED_OUT ~SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +BYA50A_1+
-  BYA50B_1+
-  BYA50C_1+
-  BYA50D_1+
-  BYA50E_1*FREE_LUNCH_MAJ+
-  BYA50F_1+
-  BYA50G_1+
-  BYA50H_1+
-  BYA50K_1 + FREE_LUNCH_MAJ, data=els_complete, family="binomial")
+ed_model <- glm(DROPPED_OUT ~SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       LH_LACK_OF_SPACE*FREE_LUNCH_MAJ + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family="binomial")
 summary(ed_model)
 
 ```
@@ -694,43 +542,11 @@ summary(ed_model)
 
 <!-- ### Bachelor's Attained -->
 ```{r}
-# els_complete <- els_complete %>%
-#   mutate(ED_ATNMT_YEARS = case_when(
-#     ED_ATNMT == 'No GED' ~ 2,
-#     ED_ATNMT == 'GED' ~ 4,
-#     ED_ATNMT == 'Associates/\nSome Undergrad' ~ 6,
-#     ED_ATNMT == 'Bachelors' ~ 8,
-#     ED_ATNMT == "Master's/\nPost-Bacc. Cert." ~ 10,
-#     ED_ATNMT == "PhD" ~ 12
-#   ))
 
-# ed_model_lm = lm(ED_ATNMT_YEARS ~ SCHOOL_TYPE+SCHOOL_URBAN+DROPOUT_PREV_PGM+VOCATIONAL_PGM  + RACE + FAM_COMP + SES + PT_ED_YEARS + PT_PUSH_YEARS + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + LIBRARY_COMPUTER_LAB + PERC_SOPH_COLLEGE_PREP*FREE_LUNCH_CATEGORIES + LOWEST_TEACHER_SALARY_THOUSANDS +LH_POOR_BUILDINGS+LH_POOR_HEATING_AIR_LIGHT+LH_LACK_TEXT+LH_LACK_OF_SPACE+LH_LACK_COMPUTERS+LH_LACK_TECH_FACILITIES+LH_POOR_LIB+LH_POOR_SCIENCE_LAB+LH_POOR_ARTS_FACILITIES  + TEST_COMP, data = els_complete)
-# summary(ed_model_lm)
-# plot(ed_model_lm)
-
-
-
-ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +BYA50A_1+
-  BYA50B_1+
-  BYA50C_1+
-  BYA50D_1+
-  BYA50E_1*FREE_LUNCH_MAJ+
-  BYA50F_1+
-  BYA50G_1+
-  BYA50H_1+
-  BYA50K_1 + FREE_LUNCH_MAJ, data=els_complete, family = "binomial")
+ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ SCHOOL_TYPE  + RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + TEACHER_TECH_ACCESS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       LH_LACK_OF_SPACE*FREE_LUNCH_MAJ + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family = "binomial")
 
 summary(ed_model_bachelors)
-
-# ed_model = polr(ED_ATNMT ~ SCHOOL_TYPE+SCHOOL_URBAN+DROPOUT_PREV_PGM+VOCATIONAL_PGM  + RACE + FAM_COMP + SES + PT_ED_YEARS + PT_PUSH_YEARS + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + LIBRARY_COMPUTER_LAB + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +LH_POOR_BUILDINGS+LH_POOR_HEATING_AIR_LIGHT+LH_LACK_TEXT+LH_LACK_OF_SPACE*FREE_LUNCH_CATEGORIES+LH_LACK_COMPUTERS+LH_LACK_TECH_FACILITIES+LH_POOR_LIB+LH_POOR_SCIENCE_LAB+LH_POOR_ARTS_FACILITIES  + TEST_COMP, data = els, Hess = TRUE)
-# ed_model_summary = summary(ed_model)
-# ctable <- coef(ed_model_summary)
-# p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
-# is_sig <- p <= 0.05
-# (ctable <- cbind(ctable, "p value" = p, "sig"=is_sig))
-# # ~ 10000 OBS WITH MISSING DATA
-# 
-# car::vif(ed_model)
 ```
 
 

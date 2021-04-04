@@ -236,6 +236,7 @@ els %>%
   ggplot() +
   geom_boxplot(aes(y=BYTXCSTD, x=PT_ED))
 
+
 els %>%
   filter(!is.na(PT_ED)) %>%
   ggplot() +
@@ -245,6 +246,7 @@ els %>%
   filter(!is.na(PT_ED), !is.na(ED_ATNMT)) %>%
   ggplot() +
   geom_bar(aes(x=ED_ATNMT, fill=PT_ED), position = "fill")
+
 ```
 
 
@@ -371,6 +373,11 @@ els %>%
   filter(!is.na(PT_PUSH), !is.na(ED_ATNMT)) %>%
   ggplot() +
   geom_bar(aes(x=ED_ATNMT, fill=PT_PUSH), position = "fill")
+
+els %>%
+  filter(!is.na(PT_ED), !is.na(PT_PUSH)) %>%
+  ggplot() +
+  geom_bar(aes(x=PT_PUSH, fill=PT_ED), position = "fill")
 
 ```
 

@@ -4,15 +4,6 @@
 output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-library(dplyr)
-library(ggplot2)
-library(MASS)
-library(lme4)
-library(mice)
-```
-
 # Methodology
 In order to compare the correlations between familial and school factors in student outcome, we create models for all of our outcomes of interest so that confounding variables are accounted for. We use models that include predictors from both groups so that the effect sizes of variables of interest are adjusted for by the inclusion of more potential confounding variables. Then, to investigate differences between the two groups of predicts, we will compare the coefficients of significant predictors.
 
