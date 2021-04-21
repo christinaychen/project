@@ -1,13 +1,14 @@
 ---
-title: "Introduction"
-author: "Christina Chen"
-date: "2/24/2021"
+# title: "Introduction"
+# author: "Christina Chen"
+# date: "2/24/2021"
 output: pdf_document
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(dplyr)
 library(ggplot2)
+library(mice)
 
 # data file too large to push to git - split into two halfs in split_data.R
 student_data1 = read.csv("els_student_first_half.csv")
@@ -23,33 +24,27 @@ Government spending on US education has been a long standing debate. In 1966, Ja
 ## Literature
 The Coleman report continues to spur further studies on school spending and student success. A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds [3]. Another study "School Finance Reform and the Distribution of Student Achievement" from 2018 draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that school finance reforms on spending in low-income school districts matter as well, as they lead to improvement in student achievement, measured by test scores [2].
 
-## Motivations and Research Questions
-To understand factors that may affect student success, we investigate student success through high school test scores, level of education attained, and socioeconomic status after entering the work force. We include predictors that fall under two categories: familial and educational. For the prior, we evaluate whether there is credit to Coleman's claim that family matters more than school resources. For the latter, we analyze the effects of school finances on student success. For the educational category, we will not be looking directly at school expenditure and revenue since the data is not available in the dataset used. Instead, we will analyze variables that could be correlated with expenditure, such as teacher certification, access to textbooks, and access to support programs. Since public school revenue is related to local taxes, we will also be looking at socioeconomic factors on the school level.
+## Research Questions
+For our analysis, we investigate whether familial or educational factors are larger determinants of student success. 
+
+First, we define familial and educational factors by categorizing all predictors of interest under these two groups. Using the familial predictors, we can evaluate whether there is credit to Coleman's claim that family is a larger determinant than school resources of student success. For the educational predictors, we can analyze the association of school finances and student success. However, we will not be looking directly at school expenditure and revenue since the data is not available in the dataset used. Instead, we will analyze variables that could be correlated with expenditure, such as building conditions, teacher salary, and access to resources. Since public school revenue is related to local taxes, we will also be looking at socioeconomic factors on the school level.
+
+Next, to measure student success, we chose to evaluate more than just high school standardized test scores, since we believe that student success is not something that can be measured by a single test while a student is still developing. By analyzing variables that are determined years after high school, we hope to get a more holistic sense of student outcome. Therefore, we measure student success through standardized test scores in 10th grade, level of education attained 10 years after 10th grade, and socioeconomic status 9 years after 10th grade.
+
 
 ## Data
 The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16,000 observations on the student level [4].
 
 ## Variables and Exploratory Data Analysis
-### Measures of Success for Research Questions
-1. Standardized test composite in 10th grade
-2. Socioeconomic quartile 7 years after graduation (2011)
-3. Highest level of education attained 8 years after graduation (2012)
 
-```{r}
-# BYTXCQU
-# F3SESQU
-# F3SES
-# els <- els %>%
-#   mutate(F3ERN2011_ORIGINAL = F3ERN2011,
-#          F3ERN2011 = ifelse(F3ERN2011 < 0, NA, F3ERN2011),
-#          F3ERN2011 = log(F3ERN2011+0.1))
-els <- els %>%
-  mutate(SES_2011 = ifelse(F3SES < 0, NA, F3SES),
-         SESQU_2011 = ifelse(F3SESQU < 0, NA, F3SESQU), SESQU_2011=factor(SESQU_2011))
+Because of the number of variables used in the models, there are many observations that have missing data for at least one of the variables. Around half of the variables were missing less than 1000 observations, while some were missing around 3000-4000. The variable with the highest amount of data missing is the variable for how far a math/English teacher pushed a student to go in school, with around 4000 missing observations for both math and English teachers. e use the `mice` package to impute the data using the predictive mean-matching method. To support our results with imputed data, we perform sensitivity analysis with non-imputed data, which still showed similar significance in the three models for the predictors of how far a math/English teacher pushed a student to go in school.
 
-els <- els %>%
-  mutate(TEST_QU = ifelse(BYTXCQU < 0, NA, BYTXCQU), TEST_QU=factor(TEST_QU))
+Due to the small sample sizes within the levels of combinations of the categorical variables and to better take into account their ordinal nature, we transform them into numeric variables. The variables of how far the parents pushed the students to go in school and the parents' highest level of education are transformed into numeric variables that represent the number of additional years of education past 9th grade for each level indicated. We acknowledge the limitations of this, as there are assumptions made that may not be accurate for all observations. For example, for levels of education that denote only attending, and not completing, high school or college, we arbitrarily set a number of years of education that would fall under the category, as the exact number of years is unknown. 
 
+Additionally, there is a set of categorical variables that denote how much learning is hindered by a particular environmental factor from a scale of 1-4, where 1 denotes no learning hindrance. Again, sample size is a problem, as our models include many categorical variables. Therefore, to optimize the number of levels that have at least 1 observation and since we do not assume linearity between each level of the variable, we collapse these categorical variables into binary indicators, instead of converting them to numeric variables. We encode each learning hindrance variable into a binary of whether or not students face any learning hindrance (levels 2-4) from the specific environmental factor. Although this results in some loss of information that's gained from the differences between levels 2, 3, and 4, we believe that this is necessary to guarantee sufficient sample sizes to generate the models.
+
+
+```{r fig.height = 4, fig.width = 7, fig.cap="Familial Predictors: Positive Relationship between Two Parent Families and Higher Education Attainment"}
 els <- els %>% mutate(
   ED_ATNMT = case_when(
     F3ATTAINMENT == 1 ~ "No GED",
@@ -62,344 +57,119 @@ els <- els %>% mutate(
 )
 els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSome Undergrad", "Bachelors", "Master's/\nPost-Bacc. Cert.", "PhD"))
 
-# els %>%
-#   filter(!is.na(ED_ATNMT)) %>%
-#   ggplot() +
-#     geom_bar(aes(x=ED_ATNMT)) +
-#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
-#   labs(x="Education Attained", y="Count")
-```
-
-### Familial Predictors
-- Race
-- Socioeconomic status
-- Family composition (see below)
-- Parents' highest level of education
-<!-- - Parents' English fluency -->
-- How far in school parents wants student to go
-- Has a computer at home
-- Has Internet access
-```{r}
-# AI/AN = American Indian/Alaska Native
-# API = Asian, Hawaii/Pacific Islander
-els <- els %>% mutate(
-  RACE = case_when(
-    BYRACE == 1 ~ "AI/AN",
-    BYRACE ==2 ~ "API",
-    BYRACE ==3 ~ "Black",
-    BYRACE ==4 | BYRACE ==5 ~ "Hispanic",
-    BYRACE ==6 ~ "Mixed",
-    BYRACE ==7 ~ "White"
-  )
-)
-els$RACE = factor(els$RACE, levels=c( "AI/AN", "Mixed", "API", "Black", "Hispanic","White"))
-
-
+# used base year data, if na, used f1 data
 els <- els %>% mutate(
   BYFCOMP = na_if(BYFCOMP, BYFCOMP<0),
   FAM_COMP = case_when(
     BYFCOMP == 1 | BYFCOMP == 2 | BYFCOMP == 3 | BYFCOMP == 4 ~ "Two Parents",
-    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 | BYFCOMP == 9~ "Single/Absent Parent"
+    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 | BYFCOMP == 9~ "Single/Absent Parent",
+    F1FCOMP == 1 | F1FCOMP == 2 | F1FCOMP == 3 | F1FCOMP == 4~ "Two Parents",
+    F1FCOMP ==5 | F1FCOMP == 6 | F1FCOMP ==7 | F1FCOMP == 8 | F1FCOMP == 9~ "Single/Absent Parent"
   )
 )
-
-els <- els %>% mutate(
-  BYPARED = na_if(BYPARED, BYPARED<0),
-  PT_ED = case_when(
-    BYPARED == 1 ~ "No HS",
-    BYPARED == 2 ~ "GED",
-    BYPARED == 3 | BYPARED == 5 ~ "Attended PS",
-    BYPARED == 4 ~ "Associates",
-    BYPARED == 6 ~ "Bachelors",
-    BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
-  )
-)
-els$PT_ED = factor(els$PT_ED, levels=c("No HS", "GED", "Attended PS", "Associates", "Bachelors", "Advanced Degree"))
-
-els <- els %>% mutate(
-  SESQU = ifelse(BYSES1QU < 0, NA, BYSES1QU),
-  SESQU = case_when(
-    SESQU == 1 ~ "1st SES Quartile",
-    SESQU == 2 ~ "2nd SES Quartile",
-    SESQU == 3 ~ "3rd SES Quartile",
-    SESQU == 4 ~ "4th SES Quartile"
-  ),
-  SESQU=factor(SESQU),
-  SES = ifelse(BYSES1 <= -2, NA, BYSES1)
-)
-
-els <- els %>% mutate(FAM_INCOME = factor(BYINCOME))
-
-els <- els %>% mutate(
-  PT_PUSH = na_if(BYPARASP, BYPARASP<0),
-  PT_PUSH = case_when(
-    PT_PUSH == 1 ~ "Less than HS Grad",
-    PT_PUSH == 2 ~ "GED",
-    PT_PUSH == 3 | BYPARED == 4 ~ "Any college (2 or 4 year)",
-    PT_PUSH == 5 ~ "Graduate from college",
-    PT_PUSH == 6 ~ "Master's",
-    PT_PUSH == 7 ~ "Advanced Degree"
-  )
-)
-els$PT_PUSH = factor(els$PT_PUSH, levels=c("Less than HS Grad", "GED", "Any college (2 or 4 year)", "Graduate from college", "Master's", "Advanced Degree"))
-
-
-els <- els %>% mutate(
-  COMP_HOME = ifelse(BYS84C < 0, NA, BYS84C),
-  COMP_HOME=factor(COMP_HOME)
-)
-
-els <- els %>% mutate(
-  HAS_INTERNET = ifelse(BYS84D < 0, NA, BYS84D),
-  HAS_INTERNET=factor(HAS_INTERNET)
-)
-
-els <- els %>% mutate(
-  PT_EXPT_SCSS = ifelse(BYS27I < 0, NA, BYS27I),
-  PT_EXPT_SCSS=case_when(
-    PT_EXPT_SCSS == 1 ~ "Strongly Agree",
-    PT_EXPT_SCSS == 2 ~ "Agree",
-    PT_EXPT_SCSS == 3 ~ "Disagree",
-    PT_EXPT_SCSS == 4 ~ "Strongly Disagree"
-  )
-)
-```
-
-```{r fig.height = 4, fig.width = 7}
-# els %>%
-#   filter(!is.na(ED_ATNMT), !is.na(FAM_COMP), !is.na(SESQU)) %>%
-#   ggplot() +
-#     geom_bar(aes(x=ED_ATNMT, fill=FAM_COMP), position="fill") +
-#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
-#   labs(x="Education Attained", y="Count") +
-#   facet_grid(.~SESQU)
-# 
-# els %>%
-#   filter(!is.na(ED_ATNMT), !is.na(SES), !is.na(COMP_HOME)) %>%
-#   ggplot() +
-#     geom_bar(aes(x=COMP_HOME, fill=ED_ATNMT), position="fill") +
-#   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
-#   labs(x="Education Attained", y="Count")+
-#   facet_wrap(.~factor(SESQU))
 
 els %>%
-  filter(!is.na(FAM_COMP), !is.na(ED_ATNMT)) %>%
+  filter(!is.na(ED_ATNMT), !is.na(FAM_COMP)) %>%
   ggplot() +
   geom_bar(aes(x=ED_ATNMT, fill=FAM_COMP), position = "fill") +
-  labs(x="Educational Attainment", y="Proportion", fill="Family Composition", title="Positive Relationship between Two Parent Families\nand Higher Education Attainment") +
+  labs(x="Educational Attainment", y="Proportion", fill="Family Composition") +
   theme(axis.text.x = element_text(angle = 45, vjust = 0.7, hjust=0.5)) 
 
-# els %>%
-#   filter(!is.na(SESQU)) %>%
-#   ggplot() +
-#   geom_boxplot(aes(y=BYTXCSTD, x=SESQU)) +
-#   labs(x="Family's Socioeconomic Quartile", y="Student Standardized Test Composite", title="")
-
-
 ```
 
-For higher levels of educational attainment, the proportion of two-parent families increases, while the proportion of those with a single parent or absent parent decreases. This shows an association between family factors and student success, perhaps somewhat backing part of Coleman's claim. In the following section, we will control for confounding variables and analyze more thoroughly the importance family factors, such as family composition, in comparison to educational ones.
+From Figure 1, we see that for higher levels of educational attainment, the proportion of two-parent families increases, while the proportion of those with a single parent or absent parent decreases. This shows an association between family factors and student success, perhaps somewhat backing part of Coleman's claim. In the following section, we will control for confounding variables and analyze more thoroughly the importance family factors, such as family composition, in comparison to educational ones.
 
-### Educational Predictors
-- School type (private/public/Catholic)
-<!-- - School urbanicity (urban, suburban, rural) -->
-<!-- - dropout prevention program offered -->
-- Programs for pregnant girls/teenage mothers offered
-<!-- - Vocational counseling/services/programs offered -->
-<!-- - Learning hindrance score -->
-<!--   - poor conditions: buildings (double weighted), heating/air/light (double weighted), science labs, fine arts facilities, lack of space (double weighted), library -->
-<!--   - lack of supplies: texts (double weighted), computers, multi-media, poor tech equipment -->
-<!-- - teacher access to technology -->
-<!-- - highest salary paid to full-time teachers -->
-- Percent of full-time teachers that are state certified
-<!-- - % full-time teachers that teach out of field -->
-- Percent of students with free lunch (see below)
-- Has paid security at any time
-<!-- - interaction between percent of students with free lunch and school type -->
-- Percent of 10th graders in college prep program
-- Learning is hindered by poor building conditions
-- Learning is hindered by poor heating/air/light
-- Learning is hindered by lack of space
-- Learning is hindered by lack of supplies/texts
-- Teachers' level of access to tech
 
-```{r}
+```{r, results='hide', warning=FALSE}
+els <- els %>%
+  mutate(TEST_COMP_QU = ifelse(BYTXCQU < 0, NA, BYTXCQU),
+         TEST_COMP = ifelse(BYTXCSTD < 0, NA, BYTXCSTD)
+  )
 els <- els %>% mutate(
-  SCHOOL_TYPE=case_when(
-    BYSCTRL == 1 ~ "Public",
-    BYSCTRL == 2 ~ "Catholic",
-    BYSCTRL == 3 ~ "Private"
+  FREE_LUNCH_PERC = factor(ifelse(F1SCFLP < 0, NA, F1SCFLP)),
+  FREE_LUNCH_PERC_10 = factor(ifelse(BY10FLP < 0, NA, BY10FLP))
+  
+)
+
+
+els <- els %>% mutate(
+  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A)),
+  FREE_LUNCH_CATEGORIES = case_when(
+    as.numeric(FREE_LUNCH_PERC) == 1 ~ "<=5%",
+    as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
+    as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
+    as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
+    as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">75%",
+    
+    as.numeric(FREE_LUNCH_PERC_10) == 1 ~ "<=5%",
+    as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
+    as.numeric(FREE_LUNCH_PERC_10) <= 5 ~ "<=50%",
+    as.numeric(FREE_LUNCH_PERC_10) <= 6 ~ "<=75%",
+    as.numeric(FREE_LUNCH_PERC_10) <= 7 ~ ">75%"
+    
   )
 )
 
-els <- els %>% mutate(
-  SCHOOL_URBAN=case_when(
-    BYURBAN == 1 ~ "Urban",
-    BYURBAN == 2 ~ "Suburban",
-    BYURBAN == 3 ~ "Rural"
-  )
-)
+els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%", "<=30%", "<=50%", "<=75%", ">75%"))
 
-els <- els %>% mutate(
-  DROPOUT_PREV_PGM = ifelse(F1A23 < 0, NA, F1A23),
-  DROPOUT_PREV_PGM=factor(DROPOUT_PREV_PGM)
-)
-
-els <- els %>% mutate(
-  PRG_PGM = ifelse(F1A21F < 0, NA, F1A21F),
-  PRG_PGM=factor(PRG_PGM)
-)
-
-els <- els %>% mutate(
-  VOCATIONAL_PGM = ifelse(F1A21A < 0, NA, F1A21A),
-  VOCATIONAL_PGM=factor(VOCATIONAL_PGM)
-)
+els <- els %>%
+  mutate(SES_2011 = ifelse(F3SES < 0, NA, F3SES),
+         SESQU_2011 = ifelse(F3SESQU < 0, NA, F3SESQU), SESQU_2011=factor(SESQU_2011, levels=c(1,2,3,4)))
 
 
 els <- els %>% mutate(
-  BYA50A_1 = ifelse(BYA50A<0, NA, BYA50A),
-  BYA50B_1 = ifelse(BYA50B<0, NA, BYA50B),
-  BYA50C_1 = ifelse(BYA50C<0, NA, BYA50C),
-  BYA50D_1 = ifelse(BYA50D<0, NA, BYA50D),
   BYA50E_1 = ifelse(BYA50E<0, NA, BYA50E),
-  BYA50F_1 = ifelse(BYA50F<0, NA, BYA50F),
-  BYA50G_1 = ifelse(BYA50G<0, NA, BYA50G),
-  BYA50H_1 = ifelse(BYA50H<0, NA, BYA50H),
-  BYA50I_1 = ifelse( BYA50I<0,NA, BYA50I),
-  BYA50J_1 = ifelse( BYA50J<0, NA, BYA50J),
-  BYA50K_1 = ifelse(BYA50K<0, NA, BYA50K),
-  LACK_OF_SPACE = factor(case_when(
-    BYA50E_1 <= 1 ~ "Not at all",
-    BYA50E_1 <= 3 ~ "Some",
-    BYA50E_1 <= 4 ~ "A lot"
-  ), levels=c("Not at all", "Some", "A lot")),
-  POOR_BUILDINGS = factor(case_when(
-    BYA50A_1 <= 1 ~ "Not at all",
-    BYA50A_1 <= 3 ~ "Some",
-    BYA50A_1 <= 4 ~ "A lot"
-  ), levels=c("Not at all", "Some", "A lot")),
-  POOR_HEATING_AIR_LIGHT = factor(case_when(
-    BYA50B_1 <= 1 ~ "Not at all",
-    BYA50B_1 <= 3 ~ "Some",
-    BYA50B_1 <= 4 ~ "A lot"
-  ), levels=c("Not at all", "Some", "A lot")),
-  LACK_TEXT = factor(case_when(
-    BYA50G_1 <= 1 ~ "Not at all",
-    BYA50G_1 <= 3 ~ "Some",
-    BYA50G_1 <= 4 ~ "A lot"
-  ), levels=c("Not at all", "Some", "A lot")),
-  LEARNING_HINDERED_CONDITIONS = BYA50A_1 + BYA50B_1 + BYA50E_1,
-  LEARNING_HINDERED_LACK_SUPPLIES = BYA50G_1,
-  LEARNING_HINDERED = LEARNING_HINDERED_CONDITIONS + LEARNING_HINDERED_LACK_SUPPLIES,
-  LEARNING_HINDERED_QU = case_when(
-    LEARNING_HINDERED <=4 ~ 1,
-    LEARNING_HINDERED <6 ~ 2,
-    LEARNING_HINDERED <=8 ~ 3,
-    LEARNING_HINDERED <=15 ~ 4
-  ),
-  LEARNING_HINDERED_QU = factor(LEARNING_HINDERED_QU),
-  LEARNING_HINDERED_CONDITIONS_QU = case_when(
-    LEARNING_HINDERED_CONDITIONS <=3 ~ 1,
-    LEARNING_HINDERED_CONDITIONS <=4 ~ 2,
-    LEARNING_HINDERED_CONDITIONS <=6 ~ 3,
-    LEARNING_HINDERED_CONDITIONS <=12 ~ 4
-  ),
-  LEARNING_HINDERED_CONDITIONS_QU = factor(LEARNING_HINDERED_CONDITIONS_QU),
-  LEARNING_HINDERED_LACK_SUPPLIES_QU = case_when(
-    LEARNING_HINDERED_LACK_SUPPLIES <=4 ~ 1,
-    LEARNING_HINDERED_LACK_SUPPLIES <=6 ~ 2,
-    LEARNING_HINDERED_LACK_SUPPLIES <=8 ~ 3,
-    LEARNING_HINDERED_LACK_SUPPLIES <=16 ~ 4
-  ),
-  LEARNING_HINDERED_LACK_SUPPLIES_QU = factor(LEARNING_HINDERED_LACK_SUPPLIES_QU)
+  LH_LACK_OF_SPACE = factor(case_when(
+    BYA50E_1 <= 1 ~ "No",
+    BYA50E_1 <= 4 ~ "Yes"
+  ), levels=c("No",  "Yes"))
 )
 
-els <- els %>% mutate(
-  FREE_LUNCH_PERC = factor(ifelse(F1SCFLP < 0, NA, F1SCFLP))
-)
+els <- els %>%
+  mutate(FREE_LUNCH_CATEGORIES_1 = case_when(
+    FREE_LUNCH_CATEGORIES == "<=5%" | FREE_LUNCH_CATEGORIES == "<=30%" ~ "<=30% Free Lunch",
+    FREE_LUNCH_CATEGORIES == "<=50%" ~ "<=50% Free Lunch",
+    FREE_LUNCH_CATEGORIES == "<=75%" ~ "<=75% Free Lunch",
+    FREE_LUNCH_CATEGORIES == ">75%" ~ ">75% Free Lunch"
+  ))
+els$FREE_LUNCH_CATEGORIES_1 = factor(els$FREE_LUNCH_CATEGORIES_1, levels = c("<=30% Free Lunch", "<=50% Free Lunch", "<=75% Free Lunch", ">75% Free Lunch"))
+
+els <- els %>%
+  mutate(SES_1 = case_when(
+    SESQU_2011 == 1 | SESQU_2011 == 2 ~ "Lower",
+    SESQU_2011 == 3 | SESQU_2011 == 4 ~ "Upper",
+  ))
+
+els_new <- els[,c("LH_LACK_OF_SPACE", "SES_1", "FREE_LUNCH_CATEGORIES_1", "TEST_COMP_QU"
+)]
 
 
-els <- els %>% mutate(
-  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A))
-  # FREE_LUNCH_CATEGORIES = case_when(
-  #   as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
-  #   as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
-  #   as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
-  #   as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
-  #   as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">75%"
-  # )
-
-)
-
-# els <- els %>% mutate(
-#   FREE_LUNCH_CATEGORIES = case_when(
-#     as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
-#     as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
-#     as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
-#     # as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
-#     as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">50%"
-#   )
-# )
-
-els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%",  "<=30%", "<=50%", "<=75%", ">75%"))
+# https://stats.idre.ucla.edu/r/faq/how-do-i-perform-multiple-imputation-using-predictive-mean-matching-in-r/
+els_imputed <- mice(els_new, m=1, maxit = 50, seed = 500, method="pmm")
 
 
-els %>%
-  ggplot() +
-  geom_histogram(aes(x=BYTXCSTD)) +
-  facet_grid(.~SCHOOL_TYPE)
-
-els %>% group_by(SCHOOL_TYPE) %>% summarise(mean_test = mean(BYTXCSTD), sd_test = sd(BYTXCSTD))
+els_complete_vis <- complete(els_imputed, 1)
 ```
 
-```{r fig.height = 4, fig.width = 7}
-els %>%
-  filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(LACK_OF_SPACE), !is.na(BYTXCSTD)) %>%
+```{r, fig.height = 4, fig.width = 7, fig.cap="Educational Predictors: Lack of Space Negatively Correlated with Test Scores, Especially as School Wealth Decreases"}
+
+# els_complete_vis %>%
+#   filter(!is.na(LH_LACK_OF_SPACE), !is.na(SES_1), !is.na(FREE_LUNCH_CATEGORIES_1)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=LH_LACK_OF_SPACE, fill=SES_1), position="fill")+
+#   labs( y="Student Standardized Test Score Composite", x="Lack of Space is a Learning Hindrance", title="SES from Schools with Higher % students with Free Lunch Decrease as Learning Hindrance Grows") +
+#   facet_grid(.~FREE_LUNCH_CATEGORIES_1)
+
+els_complete_vis %>%
   ggplot() +
-  geom_boxplot(aes(x=LACK_OF_SPACE, y=BYTXCSTD))+
-  labs( y="Student Standardized Test Score Composite", x="Lack of Space is a Learning Hindrance", title="Test Scores at Schools with Higher % students with Free Lunch\nDecrease as Learning Hindrance Grows") +
-  facet_grid(.~FREE_LUNCH_CATEGORIES)
-
-# els %>%
-#   filter(!is.na(FREE_LUNCH_CATEGORIES), !is.na(LACK_OF_SPACE), !is.na(SESQU_2011)) %>%
-#   ggplot() +
-#   geom_bar(aes(x=LACK_OF_SPACE, fill=factor(SESQU_2011)), position="fill")+
-#   labs( y="Student Standardized Test Score Composite", x="Lack of Space is a Learning Hindrance", title="Test Scores at Schools with Higher % students with Free Lunch Decrease as Learning Hindrance Grows") +
-#   facet_grid(.~FREE_LUNCH_CATEGORIES)
-
-# 
-# 
-# els %>%
-#   filter(!is.na(SESQU), !is.na(DROPOUT_PREV_PGM)) %>%
-#   ggplot() +
-#   geom_point(aes(y=BYTXCSTD, x=SES, color=DROPOUT_PREV_PGM), alpha=0.5) +
-#   labs(x="Learning Hindrance Score Quartile", y="Student Standardized Test Composite", title="Test Scores of Students of Higher SES More Negatively Affected\nby Learning Hindrances")
-#     facet_grid(.~factor(SESQU))
-# 
-# els <- els %>% mutate(
-#   DROPOUT_PREV_PGM = ifelse(F1A23 < 0, NA, F1A23),
-#   DROPOUT_PREV_PGM=factor(DROPOUT_PREV_PGM)
-# )
-
-# els <- els %>% mutate(
-#   TUTORING = ifelse(F1A17D < 0, NA, F1A17D),
-#   TUTORING = case_when(
-#     TUTORING == 1 ~ 0,
-#     TUTORING == 2 | TUTORING==3 ~ 1
-#   ),
-#   TUTORING= factor(TUTORING)
-# )
-
-# els %>%
-#   filter(!is.na(BYA14B), !is.na(BYTXCSTD), !is.na(SESQU)) %>%
-#   ggplot() +
-#   geom_boxplot(aes(x=factor(BYTXCQU), y=BYA14B)) +
-#   facet_grid(.~SESQU)
+  geom_bar(aes(x=LH_LACK_OF_SPACE, fill=factor(TEST_COMP_QU)), position="fill")+
+  labs( y="Student Standardized Test Score Composite", x="Lack of Space is a Learning Hindrance", fill="Test Composite\nQuantile") +
+  facet_grid(.~FREE_LUNCH_CATEGORIES_1)
 ```
 
-Previous literature mentions how increased spending to decrease class sizes helps to bridge the achievement gap between wealthy and poor districts. To represent the wealth of a district, we are using the percentage of students that receive free lunch, since we assume it measures general socioeconomic status of the area of the school. 
+On the educational side, previous literature mentions how increased spending to decrease class sizes helps to bridge the achievement gap between wealthy and poor districts. To represent the wealth of a district, we are using the percentage of students that receive free lunch, since we assume it measures general socioeconomic status of the area of the school. 
 
-This visualization shows an increased association between lack of space as a learning hindrance and student test scores for schools with more than 75% of students with free lunch, whereas the association seems positive or very small in schools with lower percentages of students with free lunch. This might suggest a magnified correlation between these two variables in poorer districts, aligning with previous findings.
+Figure 2 shows an increased association between lack of space as a learning hindrance and student test scores for schools with more than 75% of students with free lunch, whereas the association seems positive or very small in schools with lower percentages of students with free lunch. This might suggest a magnified correlation between these two variables in poorer districts, aligning with previous findings. Therefore, we will include an interaction between free lunch percentage and whether learning is hindered by a lack of space in our models.
 
 \newpage
 ## Sources

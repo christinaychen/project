@@ -5,33 +5,37 @@ output: pdf_document
 ---
 
 # Methodology
-In order to compare the correlations between familial and school factors in student outcome, we create models for all of our outcomes of interest so that confounding variables are accounted for. We use models that include predictors from both groups so that the effect sizes of variables of interest are adjusted for by the inclusion of more potential confounding variables. Then, to investigate differences between the two groups of predicts, we will compare the coefficients of significant predictors.
+In order to compare the correlations between familial and school factors in student outcome, we create models for all of our outcomes of interest so that confounding variables are accounted for. We use models that include predictors from both groups so that the effect sizes of variables of interest are adjusted for by confounding variables in not only the group it belongs in, but also by predictors in the other group. This will allow us to more accurately interpret effect sizes of predictors. 
 
-Because of the number of variables used in the models, there are many observations that have missing data for at least one of the variables. Therefore, we use the `mice` package to impute the data using the predictive mean-matching method.
+Then, to investigate differences between the two groups of predicts, we will compare the magnitudes of coefficients of the significant predictors. Since most of the variables we are using are categorical, coefficient magnitudes will be compared directly. In cases where variables are continuous, we will take into account an average value of the variable to fully quantify the effect size for comparison. For each model, we will categorize familial and educational predictors into three axes for easier comparison. 
 
-Due to the small sample sizes within the levels of combinations of the categorical variables and to better take into account their ordinal nature, we transform them into numeric variables. The variables of how far the parents pushed the students to go in school and the parents' highest level of education are transformed into numeric variables that represent the number of additional years of education past 9th grade for each level indicated. We acknowledge the limitations of this, as there are assumptions made that may not be accurate for all observations. For example, for levels of education that denote only attending, and not completing, high school or college, we arbitrarily set a number of years of education that would fall under the category, as the exact number of years is unknown. Additionally, there is a set of categorical variables that denote how much learning is hindered by a particular environmental factor. We change these into numeric variables as well, where each variable ranges from integers 0 to 4 based on how much the factor affects student learning. We also ackowledge the limitations of this, since this assumes a linear change from level to level. However, we believe there may be some validity to the constant effect changes between levels and believe it to be more important to have sufficient sample sizes.
+The first axis compares the financial situation between the student's home and school. To do this, we compare the student's family's SES status composite against the type of school he/she attends, whether a majority of the students there receive free lunch, and the lowest teacher salary. Although the type of school does determine how much money is spent on the students and school facilities, it also represents the wealth of the student's family, since only wealthy families are able to pay for private schools. However, since family SES is already adjusted for, we can take this to be largely the effect of the school related effects. In addition, we are using the indicator of whether a majority of the students receive free lunch as a proxy for the financial environment the school resides in. It may include more information about whether the school is able to give free lunch to those who need it, which is a limitation that can be seen in the results.
+
+The second axis we use is the motivational factors between home and school. We look at the highest number of years of education the student's parents have received and also how many years of education they hope for the student. On the school side, we analyze the number of years of education the student's math and English teachers want the student to complete. In addition, we take into consideration the percentage of sophomores who are in a college preparation program at school.
+
+The third axis is the difference in correlations between the conditions at home and at school. We compare access to technology by looking at whether the student has access to a computer and Internet at home and whether or not student learning is hindered at school by a lack of technology. In addition, we investigate home conditions, such as family composition, and school conditions, such as learning hindrances.
+
+Finally, once we have analyzed predictor effect sizes across axes within each model, we will perform a comparison of each of these axes among the models. This will allow us to more thorougly investigate whether familial or educational factors are a larger determinant, as we analyze various outcomes of student success through different groupings of factors.
 
 ## Standardized Test Composite Score
 
 Our first measure of student success is standardized test composite score, which combines the math and reading scores. Since test composite is a continuous variable, we decided to an ordinary least squares model specified below:
 
+
 \begin{align*}
-    \text{test composite}_i = &\beta_0 + \beta_11(\text{school type=private}) + \beta_21(\text{school type=public}) 
-    +\beta_3 1(\text{race=API})\\
-    + & \beta_4 1(\text{race=Black})
-    + \beta_{5} 1(\text{race=Hispanic}) + \beta_{6} 1(\text{race=White}) \\
+    \text{test composite}_i = &\beta_0
+    +\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i + \beta_{4} 1(\text{race=White})_i \\
     +&
-    \beta_{7} 1(\text{family composition=two parents}) +  \beta_{8} \text{SES} 
-    + \beta_{9}(\text{parents' \# years ed.}) \\+& \beta_{10}(\text{\# years ed. parents desire for student}) + \beta_{11}1(\text{has computer at home}) \\+& \beta_{12}1(\text{has internet at home}) 
-    + \beta_{13}(\text{teachers' tech access score}) \\+& \beta_{14}1(\text{library has computer lab})
-    +\beta_{15}(\text{\% sophomores in college prep program}) \\+& \beta_{16}(\text{lowest teacher salary (thousands)})
-    + \beta_{17}(\text{learning hindrance by poor buildings}) \\+& \beta_{18}(\text{learning hindrance by poor heating/air/light}) + \beta_{19}(\text{learning hindrance by poor science labs}) \\+& \beta_{20}(\text{learning hindrance by poor fine arts facilities})+ \beta_{21}(\text{learning hindrance by lack of space})\\+& \beta_{22}(\text{learning hindrance by poor library})  + \beta_{23}(\text{learning hindrance by lack of text/supplies}) \\+& \beta_{24}(\text{learning hindrance by too few computers})
-    +\beta_{25}(\text{learning hindrance by lack of tech equipment})\\+& \beta_{26}1(\text{free lunch percentage} > 50\%) \\+& \beta_{27}1(\text{free lunch percentage} > 50\%)(\text{learning hindrance by lack of space}) + \epsilon_i, \ 
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i + \epsilon_i, \ 
     \text{where } \epsilon_i \stackrel{i.i.d.}{\sim} \mathcal{N}(0, \sigma^2)
 \end{align*}
 
-OLS models have model assumptions of independence, normality, homoscedasticity (constant variance), and linearity between predictors and the response. Since each of the observations in our data comes from a single student, the independence assumption is satisfied. To assess the other assumptions and multicollinearity, model diagnostics are analyzed in the Appendix.
-
+OLS models have model assumptions of independence, normality, homoscedasticity (constant variance), and linearity between predictors and the response. Although observations are sampled from individual students, there may be problems with independence, since students may come from the same school. Therefore, friend groups, school conditions, and other similarities between experiences of students in the same school may affect independence. This is a limitation of our model, as the actual school of each student is not available in the data, so it cannot be accounted for. For future analysis, this data can be requested from the NCES to create a mixed effects model. To assess the other assumptions and multicollinearity, model diagnostics are analyzed in the Appendix.
 
 
 ## Socioeconomic Status
@@ -40,19 +44,16 @@ Another measure of student success is socioeconomic standing after leaving schoo
 
 
 \begin{align*}
-logit(&P(\text{SES quantile} \leq i)) = \beta_0 + \beta_11(\text{school type=private}) + \beta_21(\text{school type=public}) 
-    +\beta_3 1(\text{race=API})\\
-    + & \beta_4 1(\text{race=Black})
-    + \beta_{5} 1(\text{race=Hispanic}) + \beta_{6} 1(\text{race=White}) \\
+logit(&P(\text{SES quantile} \leq x)) = \beta_0
+    - (\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i + \beta_{4} 1(\text{race=White})_i \\
     +&
-    \beta_{7} 1(\text{family composition=two parents}) +  \beta_{8} \text{SES} 
-    + \beta_{9}(\text{parents' \# years ed.}) \\+& \beta_{10}(\text{\# years ed. parents desire for student}) + \beta_{11}1(\text{has computer at home}) \\+& \beta_{12}1(\text{has internet at home}) 
-    + \beta_{13}(\text{teachers' tech access score}) \\+& \beta_{14}1(\text{library has computer lab})
-    +\beta_{15}(\text{\% sophomores in college prep program}) \\+& \beta_{16}(\text{lowest teacher salary (thousands)})
-    + \beta_{17}(\text{learning hindrance by poor buildings}) \\+& \beta_{18}(\text{learning hindrance by poor heating/air/light}) + \beta_{19}(\text{learning hindrance by poor science labs}) \\+& \beta_{20}(\text{learning hindrance by poor fine arts facilities})+ \beta_{21}(\text{learning hindrance by lack of space})\\+& \beta_{22}(\text{learning hindrance by poor library})  + \beta_{23}(\text{learning hindrance by lack of text/supplies}) \\+& \beta_{24}(\text{learning hindrance by too few computers})
-    +\beta_{25}(\text{learning hindrance by lack of tech equipment})\\+&
-\beta_{26}1(\text{free lunch percentage} > 50\%) + \beta_{27}1(\text{free lunch percentage} > 50\%)(\text{learning hindrance by lack of space}) \\
-& \forall i\in{1,2,3,4}
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i) \\
+& \forall x\in{1,2,3,4}
 \end{align*}
 
 <!-- https://bookdown.org/mpfoley1973/data-sci/ordinal-logistic-regression.html -->
@@ -67,35 +68,29 @@ Our third measure of success is the level of education the student attained. Sin
 
 
 \begin{align*}
-logit(& P(\text{Dropped Out HS}_i = Yes)) = \beta_0 + \beta_11(\text{school type=private}) + \beta_21(\text{school type=public}) 
-    +\beta_3 1(\text{race=API})\\
-    + & \beta_4 1(\text{race=Black})
-    + \beta_{5} 1(\text{race=Hispanic}) + \beta_{6} 1(\text{race=White}) \\
+logit(& P(\text{Dropped Out HS}_i = Yes)) = \beta_0
+    +\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i + \beta_{4} 1(\text{race=White})_i \\
     +&
-    \beta_{7} 1(\text{family composition=two parents}) +  \beta_{8} \text{SES} 
-    + \beta_{9}(\text{parents' \# years ed.}) \\+& \beta_{10}(\text{\# years ed. parents desire for student}) + \beta_{11}1(\text{has computer at home}) \\+& \beta_{12}1(\text{has internet at home}) 
-    + \beta_{13}(\text{teachers' tech access score}) \\+& \beta_{14}1(\text{library has computer lab})
-    +\beta_{15}(\text{\% sophomores in college prep program}) \\+& \beta_{16}(\text{lowest teacher salary (thousands)})
-    + \beta_{17}(\text{learning hindrance by poor buildings}) \\+& \beta_{18}(\text{learning hindrance by poor heating/air/light}) + \beta_{19}(\text{learning hindrance by poor science labs}) \\+& \beta_{20}(\text{learning hindrance by poor fine arts facilities})+ \beta_{21}(\text{learning hindrance by lack of space})\\+& \beta_{22}(\text{learning hindrance by poor library})  + \beta_{23}(\text{learning hindrance by lack of text/supplies}) \\+& \beta_{24}(\text{learning hindrance by too few computers})
-    +\beta_{25}1(\text{learning hindrance by lack of tech equipment})\\+&
- \beta_{26}1(\text{free lunch percentage}> 50\%) + \beta_{27}1(\text{free lunch percentage} > 50\%)(\text{learning hindrance by lack of space}) 
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i
 \end{align*}
 
 \begin{align*}
-logit(& P(\text{Received Bachelor's}_i = Yes)) = \beta_0 + \beta_11(\text{school type=private}) + \beta_21(\text{school type=public}) 
-    +\beta_3 1(\text{race=API})\\
-    + & \beta_4 1(\text{race=Black})
-    + \beta_{5} 1(\text{race=Hispanic}) + \beta_{6} 1(\text{race=White}) \\
+logit(& P(\text{Received Bachelor's}_i = Yes)) = \beta_0
+    +\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i + \beta_{4} 1(\text{race=White})_i \\
     +&
-    \beta_{7} 1(\text{family composition=two parents}) +  \beta_{8} \text{SES} 
-    + \beta_{9}(\text{parents' \# years ed.}) \\+& \beta_{10}(\text{\# years ed. parents desire for student}) + \beta_{11}1(\text{has computer at home}) \\+& \beta_{12}1(\text{has internet at home}) 
-    + \beta_{13}(\text{teachers' tech access score}) \\+& \beta_{14}1(\text{library has computer lab})
-    +\beta_{15}(\text{\% sophomores in college prep program}) \\+& \beta_{16}(\text{lowest teacher salary (thousands)})
-    + \beta_{17}(\text{learning hindrance by poor buildings}) \\+& \beta_{18}(\text{learning hindrance by poor heating/air/light}) + \beta_{19}(\text{learning hindrance by poor science labs}) \\+& \beta_{20}(\text{learning hindrance by poor fine arts facilities})+ \beta_{21}(\text{learning hindrance by lack of space})\\+& \beta_{22}(\text{learning hindrance by poor library})  + \beta_{23}(\text{learning hindrance by lack of text/supplies}) \\+& \beta_{24}(\text{learning hindrance by too few computers})
-    +\beta_{25}1(\text{learning hindrance by lack of tech equipment})\\+&\beta_{26}1(\text{free lunch percentage}> 50\%) + \beta_{27}1(\text{free lunch percentage} > 50\%)(\text{learning hindrance by lack of space}) 
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i
 \end{align*}
 
+The assumptions for logistic regression are a binary nature of the dependent variable, independence, and no linearity between independent variables and the log odds. The independence assumption may be violated, as mentioned in assumptions for the OLS model for standardized test score. There is no linearity between the independent variables and the log odds, as there are over 16,000 observations. In addition, our model output shows that there is no linearity, as there are no extremely inflated coefficients.
 
-The assumptions for logistic regression are a binary nature of the dependent variable, independence, no multicollinearity, and no linearity between independent variables and the log odds. All observations are independent, as they are sampled from individual students. Multicollinearity is tested for using VIF (see Appendix). In addition, there is no linearity between the independent variables and the log odds, as there are over 16,000 observations. In addition, our model output shows that there is no linearity, as there are no extremely inflated coefficients.
-
-Finally, since there are many categorical variables used in our model, there are many combinations of levels. Although many categorical variable levels were combined to reduce the total number of samples needed, there are still a few levels that have only a couple of samples. Therefore, this assumption is not fully met due to imbalanced data. However, since we are only performing inference, we will not be analyzing the less frequent combinations of variables.
+As for other conditions to note, multicollinearity is tested for using VIF (see Appendix). Additionally, as mentioned earlier, since there are many categorical variables used in our model, there are many combinations of levels. Although many categorical variable levels were combined to reduce the total number of samples needed, there are still a few levels that have only a couple of samples. Therefore, there is still imbalanced data. However, since we are only performing inference, we will not be analyzing the less frequent combinations of variables.

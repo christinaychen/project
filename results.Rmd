@@ -24,407 +24,14 @@ library(kableExtra)
 library(patchwork)
 library(car)
 
-```
-
-```{r, eval=F}
-# data file too large to push to git - split into two halfs in split_data.R
-student_data1 = read.csv("els_student_first_half.csv")
-student_data2 = read.csv("els_student_second_half.csv")
-els = rbind(student_data1, student_data2)
-els_original=els
-```
-
-```{r, eval=F}
-
-els <- els %>%
-  mutate(TEST_COMP_QU = ifelse(BYTXCQU < 0, NA, BYTXCQU),
-         TEST_COMP = ifelse(BYTXCSTD < 0, NA, BYTXCSTD)
-         )
-
-
-els <- els %>%
-  mutate(SES_2011 = ifelse(F3SES < 0, NA, F3SES),
-         SESQU_2011 = ifelse(F3SESQU < 0, NA, F3SESQU), SESQU_2011=factor(SESQU_2011, levels=c(1,2,3,4)))
-
-els <- els %>%
-  mutate(TEST_QU = ifelse(BYTXCQU < 0, NA, BYTXCQU), TEST_QU=factor(TEST_QU))
-
-els <- els %>% mutate(
-  ED_ATNMT = case_when(
-    F3ATTAINMENT == 1 ~ "No GED",
-    F3ATTAINMENT == 2 ~ "GED",
-    F3ATTAINMENT ==3 | F3ATTAINMENT ==4 | F3ATTAINMENT ==5 ~ "Associates/\nSome Undergrad",
-    F3ATTAINMENT ==6 ~ "Bachelors",
-    F3ATTAINMENT ==7 | F3ATTAINMENT ==8~ "Master's/\nPost-Bacc. Cert.",
-    F3ATTAINMENT ==10 ~ "PhD"
-  )
-)
-els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSome Undergrad", "Bachelors", "Master's/\nPost-Bacc. Cert.", "PhD"))
-
-
-# AI/AN = American Indian/Alaska Native
-# API = Asian, Hawaii/Pacific Islander
-els <- els %>% mutate(
-  RACE = case_when(
-    BYRACE == 1 | BYRACE ==6~ "AI/AN/Mixed",
-    BYRACE ==2 ~ "API",
-    BYRACE ==3 ~ "Black",
-    BYRACE ==4 | BYRACE ==5 ~ "Hispanic",
-    BYRACE ==7 ~ "White"
-  )
-)
-els$RACE = factor(els$RACE, levels=c( "AI/AN/Mixed", "API", "Black", "Hispanic","White"))
-
-
-# used base year data, if na, used f1 data
-els <- els %>% mutate(
-  BYFCOMP = na_if(BYFCOMP, BYFCOMP<0),
-  FAM_COMP = case_when(
-    BYFCOMP == 1 | BYFCOMP == 2 | BYFCOMP == 3 | BYFCOMP == 4 ~ "Two Parents",
-    BYFCOMP ==5 | BYFCOMP == 6 | BYFCOMP ==7 | BYFCOMP == 8 | BYFCOMP == 9~ "Single/Absent Parent",
-    F1FCOMP == 1 | F1FCOMP == 2 | F1FCOMP == 3 | F1FCOMP == 4~ "Two Parents",
-    F1FCOMP ==5 | F1FCOMP == 6 | F1FCOMP ==7 | F1FCOMP == 8 | F1FCOMP == 9~ "Single/Absent Parent"
-  )
-)
-
-els <- els %>% mutate(
-  BYPARED = na_if(BYPARED, BYPARED<0),
-  PT_ED = case_when(
-    BYPARED == 1 | BYPARED == 2 ~ "Some HS/GED",
-    BYPARED == 3 | BYPARED == 4| BYPARED == 5 ~ "Attend PS/Associate's",
-    BYPARED == 6 ~ "Bachelors",
-    BYPARED == 7 | BYPARED == 8 ~ "Advanced Degree"
-  ),
-  PT_ED_YEARS = case_when(
-    BYPARED == 1 ~ 1,
-    BYPARED == 2 ~ 4,
-    BYPARED == 3 ~ 5,
-    BYPARED == 4 ~ 6,
-    BYPARED == 5 ~ 7,
-    BYPARED == 6 ~ 8,
-    BYPARED == 7 ~ 10,
-    BYPARED == 8 ~ 12
-  )
-)
-els$PT_ED = factor(els$PT_ED, levels=c("Some HS/GED", "Attend PS/Associate's","Bachelors", "Advanced Degree"))
-els$PT_ED_YEARS = as.numeric(els$PT_ED_YEARS)
-
-
-els <- els %>% mutate(
-  SESQU = ifelse(BYSES1QU < 0, NA, BYSES1QU),
-  SESQU = case_when(
-    SESQU == 1 ~ "1st SES Quartile",
-    SESQU == 2 ~ "2nd SES Quartile",
-    SESQU == 3 ~ "3rd SES Quartile",
-    SESQU == 4 ~ "4th SES Quartile"
-  ),
-  SESQU=factor(SESQU),
-  SES = ifelse(BYSES1 <= -2, NA, BYSES1)
-)
-
-# els <- els %>% mutate(FAM_INCOME = factor(BYINCOME))
-
-els <- els %>% mutate(
-  PT_PUSH_1 = na_if(BYPARASP, BYPARASP<0),
-  PT_PUSH = case_when(
-    PT_PUSH_1 == 1 | PT_PUSH_1 ==2 ~ "Some HS/GED",
-    PT_PUSH_1 == 3 | PT_PUSH_1 == 4 ~ "Attend PS/Associate's",
-    PT_PUSH_1 == 5 ~ "Bachelor's",
-    PT_PUSH_1 == 6 | PT_PUSH_1 == 7~ "Advanced Degree"
-  ),
-  PT_PUSH_YEARS = case_when(
-    PT_PUSH_1 == 1 ~ 2,
-    PT_PUSH_1 == 2 ~ 4,
-    PT_PUSH_1 == 3 ~ 6,
-    PT_PUSH_1 == 4 ~ 7,
-    PT_PUSH_1 == 5 ~ 8,
-    PT_PUSH_1 == 6 ~ 10,
-    PT_PUSH_1 == 7 ~ 12
-  )
-)
-els$PT_PUSH = factor(els$PT_PUSH, levels=c("Some HS/GED", "Any college (2 or 4 year)", "Bachelor's","Advanced Degree"))
-els$PT_PUSH_YEARS = as.numeric(els$PT_PUSH_YEARS)
-
-
-els <- els %>% mutate(
-  COMP_HOME = ifelse(BYS84C < 0, NA, BYS84C),
-  COMP_HOME=factor(COMP_HOME)
-)
-
-els <- els %>% mutate(
-  HAS_INTERNET = ifelse(BYS84D < 0, NA, BYS84D),
-  HAS_INTERNET=factor(HAS_INTERNET),
-  
-  COMP_AND_INTERNET = HAS_INTERNET == 1 & COMP_HOME == 1
-)
-
-
-els <- els %>% mutate(
-  SCHOOL_TYPE=case_when(
-    BYSCTRL == 1 ~ "Public",
-    BYSCTRL == 2 ~ "Catholic",
-    BYSCTRL == 3 ~ "Private"
-  )
-)
-
-els <- els %>% mutate(
-  SCHOOL_URBAN=case_when(
-    BYURBAN == 1 ~ "Urban",
-    BYURBAN == 2 ~ "Suburban",
-    BYURBAN == 3 ~ "Rural"
-  )
-)
-
-els <- els %>% mutate(
-  DROPOUT_PREV_PGM = ifelse(F1A23 < 0, NA, F1A23),
-  DROPOUT_PREV_PGM=factor(DROPOUT_PREV_PGM)
-)
-
-els <- els %>% mutate(
-  PRG_PGM = ifelse(F1A21F < 0, NA, F1A21F),
-  PRG_PGM=factor(PRG_PGM)
-)
-
-els <- els %>% mutate(
-  VOCATIONAL_PGM = ifelse(F1A21A < 0, NA, F1A21A),
-  VOCATIONAL_PGM=factor(VOCATIONAL_PGM)
-)
-
-
-els <- els %>% mutate(
-  BYA50A_1 = ifelse(BYA50A<0, NA, BYA50A),
-  BYA50B_1 = ifelse(BYA50B<0, NA, BYA50B),
-  BYA50C_1 = ifelse(BYA50C<0, NA, BYA50C),
-  BYA50D_1 = ifelse(BYA50D<0, NA, BYA50D),
-  BYA50E_1 = ifelse(BYA50E<0, NA, BYA50E),
-  BYA50F_1 = ifelse(BYA50F<0, NA, BYA50F),
-  BYA50G_1 = ifelse(BYA50G<0, NA, BYA50G),
-  BYA50H_1 = ifelse(BYA50H<0, NA, BYA50H),
-  BYA50I_1 = ifelse( BYA50I<0,NA, BYA50I),
-  BYA50J_1 = ifelse( BYA50J<0, NA, BYA50J),
-  BYA50K_1 = ifelse(BYA50K<0, NA, BYA50K),
-  LH_LACK_OF_SPACE = factor(case_when(
-    BYA50E_1 <= 1 ~ "No",
-    BYA50E_1 <= 4 ~ "Yes"
-  ), levels=c("No",  "Yes")),
-  LH_POOR_BUILDINGS = factor(case_when(
-    BYA50A_1 <= 1 ~ "No",
-    BYA50A_1 <= 4 ~ "Yes"
-  ), levels=c("No",  "Yes")),
-  LH_POOR_HEATING_AIR_LIGHT = factor(case_when(
-    BYA50B_1 <= 1 ~ "No",
-    # BYA50B_1 <= 2 ~ "Some",
-    BYA50B_1 <= 4 ~ "Yes"
-  ), levels=c("No", "Yes")),
-  LH_LACK_TEXT = factor(case_when(
-    BYA50G_1 <= 1 ~ "No",
-    BYA50G_1 <= 4 ~ "Yes"
-  ), levels=c("No",  "Yes")),
-  LH_LACK_COMPUTERS = factor(case_when(
-    BYA50H_1 <= 1 ~ "No",
-    BYA50H_1 <= 4 ~ "Yes"
-  ), levels=c("No", "Yes")),
-  LH_LACK_TECH_FACILITIES = factor(case_when(
-    BYA50K_1 <= 1 ~ "No",
-    BYA50K_1 <= 4 ~ "Yes"
-  ), levels=c("No", "Yes")),
-  LH_POOR_LIB = factor(case_when(
-    BYA50F_1 <= 1 ~ "No",
-    BYA50F_1 <= 4 ~ "Yes"
-  ), levels=c("No", "Yes")),
-  LH_POOR_SCIENCE_LAB = factor(case_when(
-    BYA50C_1 <= 1 ~ "No",
-    BYA50C_1 <= 4 ~ "Yes"
-  ), levels=c("No","Yes")),
-  LH_POOR_ARTS_FACILITIES = factor(case_when(
-    BYA50D_1 <= 1 ~ "No",
-    BYA50D_1 <= 4 ~ "Yes"
-  ), levels=c("No", "Yes")),
-  LH_POOR_MULTIMEDIA = factor(case_when(
-    BYA50I_1 <= 1 ~ "No",
-    BYA50I_1 <= 4 ~ "Yes"
-  ), levels=c("No", "Yes")),
-  
-  LH_POOR_FACILITIES = LH_POOR_ARTS_FACILITIES=="Yes" | LH_POOR_SCIENCE_LAB=="Yes" | LH_POOR_LIB == "Yes",
-  LH_POOR_TECH = LH_LACK_TECH_FACILITIES == "Yes" | LH_POOR_MULTIMEDIA == "Yes" | LH_LACK_COMPUTERS == "Yes",
-  LH_POOR_BUILDINGS_AIR = LH_POOR_BUILDINGS == "Yes" | LH_POOR_HEATING_AIR_LIGHT == "Yes"
-  
-  # LEARNING_HINDERED_POOR_CONDITIONS_SCORE = BYA50A_1 + BYA50B_1 + BYA50E_1,
-  # LEARNING_HINDERED_LACK_SUPPLIES_SCORE = BYA50G_1,
-  # LEARNING_HINDERED_POOR_TECH_SCORE = BYA50D_1 + BYA50I_1 + BYA50H_1,
-  # LEARNING_HINDERED_LACK_SPACE_SCORE = BYA50E_1,
-  # LEARNING_HINDERED_POOR_FACILITIES_SCORE = BYA50D_1+BYA50C_1+BYA50F_1
-)
-
-els <- els %>% mutate(
-  FREE_LUNCH_PERC = factor(ifelse(F1SCFLP < 0, NA, F1SCFLP)),
-  FREE_LUNCH_PERC_10 = factor(ifelse(BY10FLP < 0, NA, BY10FLP))
-
-)
-
-
-els <- els %>% mutate(
-  SECURITY = factor(ifelse(BYA40A < 0, NA, BYA40A)),
-  FREE_LUNCH_CATEGORIES = case_when(
-    as.numeric(FREE_LUNCH_PERC) == 1 ~ "<=5%",
-    as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
-    as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
-    as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
-    as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">75%",
-    
-    as.numeric(FREE_LUNCH_PERC_10) == 1 ~ "<=5%",
-    as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
-    as.numeric(FREE_LUNCH_PERC_10) <= 5 ~ "<=50%",
-    as.numeric(FREE_LUNCH_PERC_10) <= 6 ~ "<=75%",
-    as.numeric(FREE_LUNCH_PERC_10) <= 7 ~ ">75%"
-    
-  )
-
-)
-
-# els <- els %>% mutate(
-#   FREE_LUNCH_CATEGORIES = case_when(
-#     as.numeric(FREE_LUNCH_PERC) <= 1 ~ "<=5%",
-#     as.numeric(FREE_LUNCH_PERC) <= 4 ~ "<=30%",
-#     as.numeric(FREE_LUNCH_PERC) <= 5 ~ "<=50%",
-#     # as.numeric(FREE_LUNCH_PERC) <= 6 ~ "<=75%",
-#     as.numeric(FREE_LUNCH_PERC) <= 7 ~ ">50%"
-#   )
-# 
-# )
-
-# els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%",  "<=30%", "<=50%", ">50%"))
-els$FREE_LUNCH_CATEGORIES = factor(els$FREE_LUNCH_CATEGORIES, levels = c("<=5%", "<=30%", "<=50%", "<=75%", ">75%"))
-
-# assume negative value is 0
-els <- els %>% mutate(
-  BYA41A_1 = ifelse( BYA41A<0, 0, BYA41A),
-  BYA41B_1 = ifelse( BYA41B<0, 0, BYA41B),
-  BYA41C_1 = ifelse( BYA41C<0, 0, BYA41C),
-  BYA41D_1 = ifelse( BYA41D<0, 0, BYA41D),
-  BYA41E_1 = ifelse( BYA41E<0, 0, BYA41E),
-  BYA41F_1 = ifelse( BYA41F<0, 0, BYA41F),
-  BYA41G_1 = ifelse( BYA41G<0, 0, BYA41G),
-  BYA41H_1 = ifelse( BYA41H<0, 0, BYA41H),
-  BYA41I_1 = ifelse( BYA41I<0, 0, BYA41I),
-  BYA41J_1 = ifelse( BYA41J<0, 0, BYA41J),
-  BYA41K_1 = ifelse( BYA41K<0, 0, BYA41K),
-  BYA41L_1 = ifelse( BYA41L<0, 0, BYA41L),
-  BYA41M_1 = ifelse(BYA41M<0, 0, BYA41M),
-  TEACHER_BASIC_TECH_ACCESS = factor(BYA41K_1 & BYA41L_1 & BYA41M_1),
-  TEACHER_TECH_ACCESS = BYA41A_1+ BYA41B_1+BYA41C_1+BYA41D_1+BYA41E_1+BYA41F_1+BYA41G_1+BYA41H_1+BYA41I_1+BYA41J_1+2*BYA41K_1+2*BYA41L_1+ BYA41M_1
-)
-
-els <- els %>% mutate(
-  BYA43A = ifelse(BYA43A < 0, NA, BYA43A),
-  BYA43B = ifelse(BYA43B < 0, NA, BYA43B),
-  BYA43C = ifelse(BYA43C < 0, NA, BYA43C),
-  BYA43D = ifelse(BYA43D < 0, NA, BYA43D),
-  BYA43E = ifelse(BYA43E < 0, NA, BYA43E),
-
-  TEACHER_TRAINING_TECH= BYA43A+BYA43B+BYA43C+BYA43D+BYA43E
-)
-
-
-els <- els %>% mutate(
-  GOOD_TEACHERS_HIGHER_PAY = ifelse(BYA28F < 0, NA, BYA28F),
-  GOOD_TEACHERS_HIGHER_PAY= factor(GOOD_TEACHERS_HIGHER_PAY)
-)
-
-els <- els %>% mutate(
-  TUTORING = ifelse(F1A17D < 0, NA, F1A17D),
-  TUTORING = case_when(
-    TUTORING == 1 ~ 0,
-    TUTORING == 2 | TUTORING==3 ~ 1
-  ),
-  TUTORING= factor(TUTORING)
-)
-
-els <- els %>% mutate(
-  LIBRARY_COMPUTER_LAB = ifelse(BYL03F < 0, NA, BYL03F),
-  LIBRARY_COMPUTER_LAB= factor(LIBRARY_COMPUTER_LAB)
-)
-
-els <- els %>% mutate(
-  HIGHEST_TEACHER_SALARY = ifelse(BYA26B < 0, NA, BYA26B),
-  LOWEST_TEACHER_SALARY = ifelse(BYA26A < 0, NA, BYA26A),
-  TEACHER_SALARY_DISPARITY = HIGHEST_TEACHER_SALARY - LOWEST_TEACHER_SALARY,
-  LOWEST_TEACHER_SALARY_THOUSANDS = LOWEST_TEACHER_SALARY/1000
-)
-els$PERC_SOPH_COLLEGE_PREP = els$BYA14B
-
-els <- els %>%
-  mutate(
-   DROPPED_OUT = case_when(
-     F3EVERDO == 1 ~ TRUE,
-     F3EVERDO == 0 ~ FALSE
-   )
-)
-els <- els %>%
-  mutate(ED_ATNMT_BACHELORS = !(ED_ATNMT == 'No GED' | ED_ATNMT == 'GED' | ED_ATNMT == 'Associates/\nSome Undergrad')
-)
-
-els <- els %>%
-  mutate(
-    SCHOOL_TYPE1 = SCHOOL_TYPE,
-    SCHOOL_TYPE = case_when(
-      SCHOOL_TYPE == "Private" | SCHOOL_TYPE =="Catholic" ~ "Private/Catholic",
-      SCHOOL_TYPE == "Public" ~ "Public"
-    )
-  )
-
-els <- els %>%
-  mutate(FREE_LUNCH_MAJ = 
-    !(FREE_LUNCH_CATEGORIES == "<=30%" |  FREE_LUNCH_CATEGORIES == "<=5%" | FREE_LUNCH_CATEGORIES == "<=50%")
-  )
-
-els <- els %>% mutate(
-  ENGLISH_PUSH_1 = na_if(BYTE20, BYTE20<0),
-  ENGLISH_PUSH_YEARS = case_when(
-    ENGLISH_PUSH_1 == 1 ~ 2,
-    ENGLISH_PUSH_1 == 2 ~ 4,
-    ENGLISH_PUSH_1 == 3 ~ 6,
-    ENGLISH_PUSH_1 == 4 ~ 7,
-    ENGLISH_PUSH_1 == 5 ~ 8,
-    ENGLISH_PUSH_1 == 6 ~ 10,
-    ENGLISH_PUSH_1 == 7 ~ 12
-  ),
-  MATH_PUSH_1 = na_if(BYTM20, BYTM20<0),
-  MATH_PUSH_YEARS = case_when(
-    MATH_PUSH_1 == 1 ~ 2,
-    MATH_PUSH_1 == 2 ~ 4,
-    MATH_PUSH_1 == 3 ~ 6,
-    MATH_PUSH_1 == 4 ~ 7,
-    MATH_PUSH_1 == 5 ~ 8,
-    MATH_PUSH_1 == 6 ~ 10,
-    MATH_PUSH_1 == 7 ~ 12
-  )
-)
-
-
-els_new <- els[,c("SCHOOL_TYPE", "RACE", "FAM_COMP", "SES", "PT_ED", "PT_PUSH", "COMP_AND_INTERNET", "TEACHER_TECH_ACCESS",  "PERC_SOPH_COLLEGE_PREP", "LOWEST_TEACHER_SALARY_THOUSANDS", "TEST_COMP", "SESQU_2011", "DROPPED_OUT", "ED_ATNMT_BACHELORS", "PT_ED_YEARS", "PT_PUSH_YEARS", "SES_2011", 
-                  "LH_LACK_OF_SPACE", "LH_POOR_BUILDINGS", "LH_POOR_HEATING_AIR_LIGHT", "LH_LACK_TEXT", "LH_POOR_FACILITIES", "LH_POOR_TECH", "FREE_LUNCH_CATEGORIES", "FREE_LUNCH_MAJ", "MATH_PUSH_YEARS", "ENGLISH_PUSH_YEARS"
-  )]
-
-# https://stats.idre.ucla.edu/r/faq/how-do-i-perform-multiple-imputation-using-predictive-mean-matching-in-r/
-els_imputed <- mice(els_new, m=1, maxit = 50, seed = 500, method="pmm")
-
-```
-
-```{r}
-
-# els_complete <- complete(els_imputed, 1)
 els_complete <- read.csv("els_imputed.csv")
-# write.csv(els_complete, "els_imputed.csv")
+els <- read.csv("els_filtered.csv")
 ```
+
 
 # Results
 
-In comparing family and school predictors in the following models, we look at a couple of axes. The first one compares the financial situation between the student's home and school. To do this, we compare the student's family's SES status composite against the type of school he/she attends, whether a majority of the students there receive free lunch, and the lowest teacher salary. Although the type of school does determine how much money is spent on the students and school facilities, it also represents the wealth of the student's family, since only wealthy families are able to pay for private schools. However, since family SES is already adjusted for, we can take this to be largely the effect of the school related effects. In addition, we are using the indicator of whether a majority of the students receive free lunch as a proxy for the financial environment the school resides in. It may include more information about whether the school is able to give free lunch to those who need it, which is a limitation that can be seen in the results.
 
-The second axis we use is the motivational factors between home and school. We look at the highest number of years of education the student's parents have received and also how many years of education they hope for the student. On the school side, we analyze the number of years of education the student's math and english teachers want the student to complete. In addition, we take into consideration the percentage of sophomores who are in a college preparation program at school.
-
-The third axis is the difference in correlations between the conditions at home and at school. We compare access to technology by looking at whether the student has access to a computer and Internet at home and whether or not student learning is hindered at school by a lack of technology. In addition, we investigate home conditions, such as family composition, and school conditions, such as learning hindrances.
 
 ## Standardized Test Composite Score
 
@@ -463,10 +70,9 @@ get_results_table <- function(mod_summary, var_names_formatted, caption) {
 }
 
 
-get_results_table(test_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: OLS Model for Test Composite Score")
+get_results_table(test_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: OLS Model for Test Composite Score")
 
 ```
-
 
 The student's family's socioeconomic status has a positive relationship with test composite score: controlling for other variables, when SES increases by one unit, the student's test composite score increases by 2 points. On the other hand, we can look at variables that serve as proxies of the finances of the school. The type of school a student attends is not significantly associated with the student's test composite score. However, whether or not a student went to a school where the majority of students received free lunch is significantly correlated with test composite score. If a student went to a school where the majority of students received free lunch, test scores decreased by 1.04 on average, with all else held constant. Therefore, in terms of financial factors, it seems that finances of the student's home has a higher magnitude of correlation with test composite.
 
@@ -477,6 +83,7 @@ Comparing home and school factors, the student's access to technology at home is
 Taking into account all of the variables that are significantly associated with test composite, it seems that the home factors are more strongly correlated with test composite in terms of environmental conditions and finances. However, influence from adults seem to be more strongly correlated with the outcome at school than at home.
 
 ## Socioeconomic Status Quantile
+
 ```{r}
 # https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
 ses_model = polr(factor(SESQU_2011) ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
@@ -518,7 +125,7 @@ get_results_table_ordinal <- function(mod_summary, var_names_formatted, cap) {
   return(ret)
 }
 
-get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space", "Intercept (SES Quartile <= 1)", "Intercept (SES Quartile <= 2)", "Intercept (SES Quartile <= 3)"), "Results: Ordinal Logistic Regression for SES Status")
+get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space", "Intercept (SES Quartile <= 1)", "Intercept (SES Quartile <= 2)", "Intercept (SES Quartile <= 3)"), "Results: Ordinal Logistic Regression for SES Status")
 
 
 # els_complete$SESUPPER_2011 = factor(els_complete$SESQU_2011 == 3 | els_complete$SESQU_2011 == 4)
@@ -528,7 +135,6 @@ get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=H
 # get_results_table_logistic(ses_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Being in Upper SES")
 ```
 
-
 The student's family's SES status is significantly associated with the odds of being in a lower SES quantile. The odds a student is in an SES quantile lower than 1, 2 or 3, as an adult, decreases by a factor of 0.711 for every one increase in his/her family's SES status composite, all else held constant. On the school side, if the student attended a public school or went to a school where a majority of students received free lunch, the odds of being in a lower SES quantile as an adult increases. Looking at effect sizes, it seems that these home and school financial factors are relatively similar in this model.
 
 In terms of motivation stemming from home or school, the push from teachers is more correlated with the outcome than the push from parents. For every additional year that the parents push their student to achieve in school, the odds of being in a lower SES quantile only decreases by a factor of 0.95, very close to 1, with all else adjusted for. The percentage of sophomores in a college preparation program is also significant; however, the effect size is very minimal as well. Therefore, it seems that the number of years that teachers push a student, a school-related motivational factor, is the most correlated with student SES outcome 9 years after their sophomore year.
@@ -536,7 +142,6 @@ In terms of motivation stemming from home or school, the push from teachers is m
 Once again, whether a student has access to a computer and internet at home is significantly correlated with the outcome. Students who have this technology access are, on average, 0.77 times less likely to be in the lower SES quantiles. On the other hand, learning hindrance at school due to technology is not significant in the model. In terms of other conditions at school, a student is more likely to be in a lower SES quantile if their learning was hindered by a lack of space, poor building conditions, or poor facilities at school. Therefore, although technology presence is important at home, the lack of resources and good conditions at school also are negatively associated with future success.
 
 Therefore, when predicting the odds of being below a particular SES quantile when the student is an adult, the effect sizes of school factors among these 3 axes are pretty leveled in magnitude when compared with the effect sizes of home factors.
-
 
 ```{r}
 # ses_model_lm = lm(log(SES_2011+0.1) ~ SCHOOL_TYPE+SCHOOL_URBAN+DROPOUT_PREV_PGM+VOCATIONAL_PGM  + RACE + FAM_COMP + SES + PT_ED_YEARS + PT_PUSH_YEARS + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + LIBRARY_COMPUTER_LAB + PERC_SOPH_COLLEGE_PREP*FREE_LUNCH_CATEGORIES + LOWEST_TEACHER_SALARY_THOUSANDS +LH_POOR_BUILDINGS+LH_POOR_HEATING_AIR_LIGHT+LH_LACK_TEXT+LH_LACK_OF_SPACE+LH_LACK_COMPUTERS+LH_LACK_TECH_FACILITIES+LH_POOR_LIB+LH_POOR_SCIENCE_LAB+LH_POOR_ARTS_FACILITIES , data = els)
@@ -546,8 +151,8 @@ Therefore, when predicting the odds of being below a particular SES quantile whe
 
 ```
 
-
 ## Education Attainment
+
 ### Odds of Dropping Out of High School
 
 ```{r}
@@ -587,7 +192,7 @@ ed_model <- glm(DROPPED_OUT ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEA
 
 ed_model_summary = summary(ed_model)
 
-get_results_table_logistic(ed_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Dropping Out of HS")
+get_results_table_logistic(ed_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Dropping Out of HS")
 
 ```
 
@@ -600,6 +205,7 @@ When investigating general conditions at home and at school, it seems that the h
 When modeling odds of dropping out of high school, school factors are more strongly associated over home factors when looking at finances and external motivation. However, the opposite is true when looking at environmental conditions.
 
 ### Odds of Attaining Bachelor's Degree
+
 ```{r}
 
 ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE +  MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
@@ -607,7 +213,7 @@ ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEA
 
 ed_model_bachelors_summary = summary(ed_model_bachelors)
 
-get_results_table_logistic(ed_model_bachelors_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Attaining Bachelor's")
+get_results_table_logistic(ed_model_bachelors_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Attaining Bachelor's")
 ```
 
 When looking at wealth factors, a student's family's SES status composite is significantly positively associated with the odds of attaining a Bachelor's degree. For every one increase in SES composite, the odds of the student attaining a Bachelor's degree increases by a factor of 1.6, adjusting for other variables. On the school level, whether or not the high school attended was a public school is significantly negative correlated with the outcome, at a factor of 0.75 when controlling for other factors. Interestingly, the coefficient for the interaction of whether learning was hindered at the student's high schol by a lack of space and whether the school provided a majority of the students with free lunch is significant, while the individual effects are not significant. If a student attended a high school with both of these indicators, the odds of them completing a Bachelor's degree decreases by a factor of 0.75. However, if only one of these indicators is true, the odds is only minimally changed. Therefore, as we found a negative association for only poorer schools that face space limitations, this tangentially supports the findings in previous literatures that showed a larger positive effect when funding poorer schools that also had a lack of space for students. Since SES is a continuous variable, the effect size can be larger than just 1.6 with more than a singular difference in SES from 0. Therefore, it seems that both family and home factors are similar in their effect magnitudes on the odds of attaining a Bachelor's degree, especially when the high school also faced a lack of space and provided a majority of students with free lunch.
@@ -626,9 +232,10 @@ For external motivation, all four models show that the push from teachers is has
 
 When looking at environmental conditions, both home and school factors are similar in effect size magnitudes for an SES related outcome and odds of attaining a Bachelor's degree. In addition, the home factors are more highly correlated with the test composite score and odds of dropping out.
 
-
 \newpage
+
 # Appendix
+
 ## Standardized Test Composite Score
 
 ```{r}
@@ -667,8 +274,8 @@ resid_dist <- ggplot(data = model.lm.aug) +
 resid_plot+ qq_plot+resid_dist+vif_plot
 ```
 
-
 ## SES Status
+
 ```{r, fig.height=5, fig.width=7}
 get_calibration_plot <- function(SES, model) {
   ses.pred <- fitted(ses_model)
@@ -758,12 +365,14 @@ brant(ses_model)
 
 ```
 
-Since ordinal logistic regression has a categorical dependent variable, we first fit a linear model with the numeric version of the dependent variable of SES quantile. Then, after performing VIF, we find that there is no multicollinearity, as all of the VIF are under 10. 
+Since ordinal logistic regression has a categorical dependent variable, we first fit a linear model with the numeric version of the dependent variable of SES quantile. Then, after performing VIF, we find that there is no multicollinearity, as all of the VIF are under 10.
 
 The proportional odds assumption is violated for 5 variables in the model. However, since we are performing only inference and since the calibration plots are relatively reasonable in comparison to the ideal line, this should not be a large concern.
 
 ## Education Attainment
+
 ### Odds of Dropping Out of High School
+
 ```{r fig.height = 3.5, fig.width = 7}
 #http://finzi.psych.upenn.edu/library/broom/html/augment.glm.html
 full_model_aug <- broom::augment(ed_model, type.predict = 'response', 
@@ -797,14 +406,17 @@ deciles  = quantile(full_model_aug$.fitted, seq(0, 1, length = 11), type=5)
     theme(legend.position="none") + labs(title = "Dropping Out of HS - Decile Calibration Plot", x = "Average Predicted Probability", y = "Observed Frequency")
 
 ```
+
 The calibration plot shows that the observed frequencies are pretty similar to the average predicted probabilities, with a small blip around an average predicted probability of 0.16. However, the overall trend is very similar to the ideal line.
 
 ```{r, eval=F}
 vif(ed_model)
 ```
+
 All VIF of the variables are less than 10, so there are no issues with multicollinearity in our model.
 
 ### Odds of Attaining a Bachelor's Degree
+
 ```{r fig.height = 3.5, fig.width = 7}
 #http://finzi.psych.upenn.edu/library/broom/html/augment.glm.html
 full_model_aug <- broom::augment(ed_model_bachelors, type.predict = 'response', 
@@ -838,6 +450,7 @@ deciles  = quantile(full_model_aug$.fitted, seq(0, 1, length = 11), type=5)
     theme(legend.position="none") + labs(title = "Attaining Bachelor's - Decile Calibration Plot", x = "Average Predicted Probability", y = "Observed Frequency")
 
 ```
+
 Although there are some deviances from the ideal line for the predicted probabilities greater than around 0.5, the line observed frequencies are still relatively close to the average predicted probabilities.
 
 ```{r, eval=F}
@@ -845,3 +458,51 @@ vif(ed_model_bachelors)
 ```
 
 All VIF of the variables are less than 10, so there are no issues with multicollinearity in our model.
+
+## Sensitivity Analysis Without Imputed Data
+
+```{r}
+test_model_both = lm(TEST_COMP ~  RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS+ PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els)
+test_model_summary = summary(test_model_both)
+
+get_results_table(test_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: OLS Model for Test Composite Score")
+
+```
+
+```{r}
+# https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+ses_model = polr(factor(SESQU_2011) ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, Hess = TRUE)
+ses_model_summary = summary(ses_model)
+# ctable <- coef(ses_model_summary)
+# p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+# is_sig <- p <= 0.05
+# (ctable <- cbind(ctable, "exp(coef)" = exp(ctable[,"Value"]), "p value" = p, "sig"=is_sig))
+
+get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space", "Intercept (SES Quartile <= 1)", "Intercept (SES Quartile <= 2)", "Intercept (SES Quartile <= 3)"), "Results: Ordinal Logistic Regression for SES Status")
+```
+
+
+```{r}
+ed_model <- glm(DROPPED_OUT ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, family="binomial")
+
+ed_model_summary = summary(ed_model)
+
+get_results_table_logistic(ed_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Dropping Out of HS")
+
+```
+
+
+```{r}
+
+ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE +  MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, family = "binomial")
+
+ed_model_bachelors_summary = summary(ed_model_bachelors)
+
+get_results_table_logistic(ed_model_bachelors_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Attaining Bachelor's")
+```
+
+
