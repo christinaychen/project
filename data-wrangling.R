@@ -362,6 +362,12 @@ els <- els %>% mutate(
 els_new <- els[,c("SCHOOL_TYPE", "RACE", "FAM_COMP", "SES", "PT_ED", "PT_PUSH", "COMP_AND_INTERNET",  "PERC_SOPH_COLLEGE_PREP", "LOWEST_TEACHER_SALARY_THOUSANDS", "TEST_COMP", "SESQU_2011", "DROPPED_OUT", "ED_ATNMT_BACHELORS", "PT_ED_YEARS", "PT_PUSH_YEARS", "LH_LACK_OF_SPACE", "LH_POOR_BUILDINGS", "LH_POOR_HEATING_AIR_LIGHT", "LH_LACK_TEXT", "LH_POOR_FACILITIES", "LH_POOR_TECH", "FREE_LUNCH_CATEGORIES", "FREE_LUNCH_MAJ", "MATH_PUSH_YEARS", "ENGLISH_PUSH_YEARS"
 )]
 
+# write.csv(els_new, "els_filtered.csv")
+
+# for(var in c("SCHOOL_TYPE", "RACE", "FAM_COMP", "SES", "PT_ED", "PT_PUSH", "COMP_AND_INTERNET",  "PERC_SOPH_COLLEGE_PREP", "LOWEST_TEACHER_SALARY_THOUSANDS", "TEST_COMP", "SESQU_2011", "DROPPED_OUT", "ED_ATNMT_BACHELORS", "PT_ED_YEARS", "PT_PUSH_YEARS", "LH_LACK_OF_SPACE", "LH_POOR_BUILDINGS", "LH_POOR_HEATING_AIR_LIGHT", "LH_LACK_TEXT", "LH_POOR_FACILITIES", "LH_POOR_TECH", "FREE_LUNCH_CATEGORIES", "FREE_LUNCH_MAJ", "MATH_PUSH_YEARS", "ENGLISH_PUSH_YEARS"
+# )) {
+#   print(sum(is.na(els_new[,var]), na.rm = T))
+# }
 
 # https://stats.idre.ucla.edu/r/faq/how-do-i-perform-multiple-imputation-using-predictive-mean-matching-in-r/
 els_imputed <- mice(els_new, m=1, maxit = 50, seed = 500, method="pmm")

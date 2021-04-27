@@ -1,0 +1,417 @@
+---
+# title: "Appendix"
+# author: "Christina Chen"
+# date: "4/27/2021"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(ggplot2)
+library(MASS)
+library(lme4)
+library(mice)
+library(kableExtra)
+library(gridExtra)
+library(grid)
+library(tidyr)
+library(tidyverse)
+library(knitr)
+library(MASS)
+library(broom)
+library(rms)
+library(kableExtra)
+library(patchwork)
+library(car)
+```
+
+```{r}
+els_complete <- read.csv("els_imputed.csv")
+els <- read.csv("els_filtered.csv")
+
+test_model_both = lm(TEST_COMP ~  RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS+ PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
+
+ed_model <- glm(DROPPED_OUT ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family="binomial")
+
+ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE +  MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family = "binomial")
+
+ses_model = polr(factor(SESQU_2011) ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, Hess = TRUE)
+ses_model_summary = summary(ses_model)
+# ctable <- coef(ses_model_summary)
+# p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+# is_sig <- p <= 0.05
+# (ctable <- cbind(ctable, "exp(coef)" = exp(ctable[,"Value"]), "p value" = p, "sig"=is_sig))
+
+
+get_results_table <- function(mod_summary, var_names_formatted, caption) {
+  coef <- (formatC(round(mod_summary$coefficients[,1], 3), format='f', digits=3))
+  std_error <- round(mod_summary$coefficients[,2], 3)
+  p_val <- formatC(round(mod_summary$coefficients[,4], 3), format='f', digits=3)
+  p_val_formatted <- c()
+  for(i in 1:length(p_val)) {
+    if (p_val[i] < 0.001) {
+      p_val_formatted = c(p_val_formatted, "<0.001")
+    } else {
+      p_val_formatted = c(p_val_formatted, as.character(p_val[i]))
+    }
+  }
+  table <- cbind(coef,std_error)
+  table <- cbind(table, p_val_formatted)
+  colnames(table) = c("Coef","Std. Error", "P-value")
+  rownames(table) = var_names_formatted
+  # tb <- knitr::kable(table, booktabs=T)
+  #https://community.rstudio.com/t/aligning-tables-in-the-center/6699/2
+  sig = which(p_val<0.05)
+  ret <- table %>%
+    kable(booktabs = T, caption=caption) %>%
+    kable_styling(latex_options = "hold_position", full_width = F) %>%
+    # row_spec(c(2:10), bold = F, color = "black", background = "#E3C5C5") %>%
+    # row_spec(c(11:21), bold = F, color = "black", background = "#C5D0E3") %>%
+    row_spec(sig[ifelse(sig<=10 & sig>=2, TRUE,FALSE)], background = "#E3C5C5") %>%
+    row_spec(sig[ifelse(sig<=23 & sig>=11, TRUE,FALSE)], background = "#C5D0E3")
+  return(ret)
+}
+
+
+get_results_table_logistic <- function(mod_summary, var_names_formatted, caption) {
+  coef <- (formatC(round(mod_summary$coefficients[,1], 3), format='f', digits=3))
+  std_error <- round(mod_summary$coefficients[,2], 3)
+  exp_val <- (formatC(round(exp(mod_summary$coefficients[,1]), 3), format='f', digits=3))
+  p_val <- round(mod_summary$coefficients[,4], 3)
+  p_val_formatted <- c()
+  for(i in 1:length(p_val)) {
+    if (p_val[i] < 0.001) {
+      p_val_formatted = c(p_val_formatted, "<0.001")
+    } else {
+      p_val_formatted = c(p_val_formatted, as.character(p_val[i]))
+    }
+  }
+  table <- cbind(coef,exp_val )
+  table <- cbind(table,std_error)
+  table <- cbind(table, p_val_formatted)
+  colnames(table) = c("Coef","Exp(Coef)","Std. Error", "P-value")
+  rownames(table) = var_names_formatted
+  # tb <- knitr::kable(table, booktabs=T)
+  #https://community.rstudio.com/t/aligning-tables-in-the-center/6699/2
+  sig = which(p_val<0.05)
+  ret <- table %>%
+    kable(booktabs = T, caption=caption) %>%
+    kable_styling(latex_options = "hold_position", full_width = F) %>%
+    # row_spec(c(2:10), bold = F, color = "black", background = "#E3C5C5") %>%
+    # row_spec(c(11:21), bold = F, color = "black", background = "#C5D0E3") %>%
+    row_spec(sig[ifelse(sig<=10 & sig>=2, TRUE,FALSE)], background = "#E3C5C5") %>%
+    row_spec(sig[ifelse(sig<=23 & sig>=11, TRUE,FALSE)], background = "#C5D0E3")
+  return(ret)
+}
+
+get_results_table_ordinal <- function(mod_summary, var_names_formatted, cap) {
+  coef <- (formatC(round(mod_summary$coefficients[,1], 3), format='f', digits=3))
+  std_error <- formatC(round(mod_summary$coefficients[,2], 3), format='f', digits=3)
+  exp_val <- formatC(round(exp(-mod_summary$coefficients[,1]), 3), format='f', digits=3)
+  p_val <- formatC(round(pnorm(abs(mod_summary$coefficients[, "t value"]), lower.tail = FALSE) * 2, 3), format='f', digits=3)
+  p_val_formatted <- c()
+  for(i in 1:length(p_val)) {
+    if (p_val[i] < 0.001) {
+      p_val_formatted = c(p_val_formatted, "<0.001")
+    } else {
+      p_val_formatted = c(p_val_formatted, as.character(p_val[i]))
+    }
+  }
+  table <- cbind(coef,exp_val )
+  table <- cbind(table,std_error)
+  table <- cbind(table, p_val_formatted)
+  colnames(table) = c("Coef","Exp(-Coef)","Std. Error", "P-value")
+  rownames(table) = var_names_formatted
+  # tb <- knitr::kable(table, booktabs=T)
+  #https://community.rstudio.com/t/aligning-tables-in-the-center/6699/2
+  sig = which(p_val<0.05)
+  ret <- table %>%
+    kable(booktabs = T, caption=cap) %>%
+    kable_styling(latex_options = "hold_position", full_width = F) %>%
+    # row_spec(c(2:10), bold = F, color = "black", background = "#E3C5C5") %>%
+    # row_spec(c(11:21), bold = F, color = "black", background = "#C5D0E3") %>%
+    row_spec(sig[ifelse(sig<=9 & sig>=1, TRUE,FALSE)], background = "#E3C5C5") %>%
+    row_spec(sig[ifelse(sig<=22 & sig>=10, TRUE,FALSE)], background = "#C5D0E3")
+  return(ret)
+}
+```
+
+# Appendix
+## Standardized Test Composite Score
+
+```{r}
+# plot(test_model_both)
+# car::vif(test_model_both)
+```
+
+```{r, warning=F}
+model.lm = test_model_both
+model.lm.aug <- augment(model.lm, type.predict = "response")
+resid_plot <- model.lm.aug %>%
+  ggplot() +
+  geom_point(aes(x = .fitted, y = .std.resid)) +
+  geom_hline(aes(yintercept = 0), color = "red")+
+  labs(x = "Predicted Test Composite",
+       y = "Residuals")
+```
+
+```{r, fig.cap = "Model Diagnostic Plots: Residual vs. Predicted (Upper Left), QQ Plot (Upper Right), Distribution of Residuals (Lower Left), Vif Values (Lower Right)", warning=F}
+qq_plot <- ggplot(model.lm.aug, mapping = aes(sample = .std.resid)) +
+  stat_qq() + 
+  stat_qq_line() +
+  labs(x = "Theoretical",
+       y = "Sample")
+
+vif_plot <- ggplot(tidy(rms::vif(model.lm)) %>%
+               mutate(var.num = row_number())) +
+        geom_point(aes(x = var.num, y = x)) +
+        geom_hline(yintercept = 10, color = "red") +
+        labs(x = "Variable Number",
+             y = "Vif Values")
+resid_dist <- ggplot(data = model.lm.aug) +
+  geom_histogram(aes(x = .std.resid), binwidth = 0.4) +
+  labs(x = "Residuals")
+
+resid_plot+ qq_plot+resid_dist+vif_plot
+```
+
+There is no pattern in the residual plot, and they are normally distributed around 0. In addition, the QQ-plot shows a very close line to the ideal diagonal. The VIF are also all under 10, so there is no extreme multicollinearity. Therefore, we conclude that the assumptions for our OLS model are met.
+
+## SES Status
+
+```{r, fig.height=5, fig.width=7}
+get_calibration_plot <- function(SES, model) {
+  ses.pred <- fitted(ses_model)
+  pred_prob <- bind_cols("prob_SES"=ses.pred[,SES], "SES_factor"=els_complete$SESQU_2011 )
+
+  deciles  = quantile(pred_prob$prob_SES, seq(0, 1, length = 11), type=5)
+  x_deciles= quantile(pred_prob$prob_SES, seq(0.05, 0.95, length = 10), type=5)
+  pred_prob %>%
+  mutate(
+    bin = case_when(
+    prob_SES <= deciles[2] ~ 0.1,
+    prob_SES <= deciles[3] ~ 0.2,
+    prob_SES <= deciles[4] ~ 0.3,
+    prob_SES <= deciles[5] ~ 0.4,
+    prob_SES <= deciles[6] ~ 0.5,
+    prob_SES <= deciles[7] ~ 0.6,
+    prob_SES <= deciles[8] ~ 0.7,
+    prob_SES <= deciles[9] ~ 0.8,
+    prob_SES <= deciles[10] ~ 0.9,
+    prob_SES <= deciles[11] ~ 1)
+  ) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_true_prop = mean(SES_factor==SES),
+    avg_pred_prob = mean(prob_SES),
+    conf_diff =1.96*sqrt(avg_true_prop * (1-avg_true_prop)/n())
+  ) %>% ggplot(aes(y=avg_true_prop, x=x_deciles)) +
+    geom_line() +
+    # geom_bar() +
+    geom_errorbar(aes(ymin=avg_true_prop-conf_diff, ymax=avg_true_prop+conf_diff)) +
+    geom_abline(aes(intercept=0, slope=1), color="red") +
+    theme(legend.position="none")
+
+  # http://www.sthda.com/english/wiki/ggplot2-error-bars-quick-start-guide-r-software-and-data-visualization
+}
+
+ses_1_plot <- get_calibration_plot(1)
+ses_2_plot <- get_calibration_plot(2)
+ses_3_plot <- get_calibration_plot(3)
+ses_4_plot <- get_calibration_plot(4)
+
+
+# white_cal_plot + labs(title="Decile Calibration Plot for Race = White", x="Average Predicted Probability", y="Observed Frequency")
+# black_cal_plot + labs(title="Decile Calibration Plot for Race = Black", x="Average Predicted Probability", y="Observed Frequency")
+# hisp_cal_plot + labs(title="Decile Calibration Plot for Race = White Hispanic", x="Average Predicted Probability", y="Observed Frequency")
+# other_cal_plot + labs(title="Decile Calibration Plot for Race = Other", x="Average Predicted Probability", y="Observed Frequency")
+layout(matrix(c(1, 2), nrow=2, ncol=1), heights=c(1,8))
+
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Decile Calibration Plots (One vs All)")
+
+grid.arrange(arrangeGrob(
+ses_1_plot + labs(title="1st SES Quantile", x="", y="Observed Frequency"),
+ses_2_plot + labs(title="2nd SES Quantile", x="", y=""),
+ses_3_plot + labs(title="3rd SES Quantile", x="Average Predicted Probability", y="Observed Frequency"),
+ses_4_plot + labs(title="4th SES Quantile", x="Average Predicted Probability", y=""),
+  ncol=2,
+  nrow=2), top=textGrob("Decile Calibration Plots (One vs All)",gp=gpar(fontsize=14,font=3)))
+
+```
+
+```{r, eval=F}
+# proportional odds test
+mlm <- nnet::multinom(SESQU_2011 ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
+G <- -2 * (logLik(ses_model)[1] - logLik(mlm)[1])
+pchisq(G, df = length(ses_model$zeta) - 1, lower.tail = FALSE)
+
+
+ses_model_lm = lm(SESQU_2011~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
+
+vif(ses_model_lm)
+
+poTest(ses_model)
+brant(ses_model)
+
+
+# model.lm=ses_model
+# vif_plot <- ggplot(tidy(vif(model.lm)) %>%
+#                mutate(var.num = row_number())) +
+#         geom_point(aes(x = var.num, y = x)) +
+#         geom_hline(yintercept = 10, color = "red") +
+#         labs(x = "Variable Number",
+#              y = "Vif Values")
+
+```
+
+Since ordinal logistic regression has a categorical dependent variable, we first fit a linear model with the numeric version of the dependent variable of SES quantile. Then, after performing VIF, we find that there is no multicollinearity, as all of the VIF are under 10.
+
+The proportional odds assumption is violated for 5 variables in the model. However, since we are performing only inference and since the calibration plots are relatively reasonable in comparison to the ideal line, this should not be a large concern.
+
+As seen above, we created calibration plots for all four SES quantiles using a One vs All classification, and it seems that the models generally perform well, which gives us more confidence in our results.
+
+## Education Attainment
+
+### Odds of Dropping Out of High School
+
+```{r fig.height = 3.25, fig.width = 7}
+#http://finzi.psych.upenn.edu/library/broom/html/augment.glm.html
+full_model_aug <- broom::augment(ed_model, type.predict = 'response', 
+                            type.residuals = 'deviance')
+deciles  = quantile(full_model_aug$.fitted, seq(0, 1, length = 11), type=5)
+  x_deciles= quantile(full_model_aug$.fitted, seq(0.05, 0.95, length = 10), type=5)
+  full_model_aug %>%
+    mutate(
+    bin = case_when(
+    .fitted <= deciles[2] ~ 0.1,
+    .fitted <= deciles[3] ~ 0.2,
+    .fitted <= deciles[4] ~ 0.3,
+    .fitted <= deciles[5] ~ 0.4,
+    .fitted <= deciles[6] ~ 0.5,
+    .fitted <= deciles[7] ~ 0.6,
+    .fitted <= deciles[8] ~ 0.7,
+    .fitted <= deciles[9] ~ 0.8,
+    .fitted <= deciles[10] ~ 0.9,
+    .fitted <= deciles[11] ~ 1)
+  ) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_true_prop = mean(as.numeric(DROPPED_OUT)),
+    avg_pred_prob = mean(.fitted),
+    conf_diff =1.96*sqrt(avg_true_prop * (1-avg_true_prop)/n())
+  ) %>% ggplot(aes(y=avg_true_prop, x=x_deciles)) +
+    geom_line() +
+    # geom_bar() +
+    geom_errorbar(aes(ymin=avg_true_prop-conf_diff, ymax=avg_true_prop+conf_diff)) +
+    geom_abline(aes(intercept=0, slope=1), color="red") +
+    theme(legend.position="none") + labs(title = "Dropping Out of HS - Decile Calibration Plot", x = "Average Predicted Probability", y = "Observed Frequency")
+
+```
+
+The calibration plot shows that the observed frequencies are pretty similar to the average predicted probabilities, with a small blip around an average predicted probability of 0.16. However, the overall trend is very similar to the ideal line.
+
+```{r, eval=F}
+vif(ed_model)
+```
+
+All VIF of the variables are less than 10, so there are no issues with multicollinearity in our model.
+
+### Odds of Attaining a Bachelor's Degree
+
+```{r fig.height = 3.25, fig.width = 7}
+#http://finzi.psych.upenn.edu/library/broom/html/augment.glm.html
+full_model_aug <- broom::augment(ed_model_bachelors, type.predict = 'response', 
+                            type.residuals = 'deviance')
+deciles  = quantile(full_model_aug$.fitted, seq(0, 1, length = 11), type=5)
+  x_deciles= quantile(full_model_aug$.fitted, seq(0.05, 0.95, length = 10), type=5)
+  full_model_aug %>%
+    mutate(
+    bin = case_when(
+    .fitted <= deciles[2] ~ 0.1,
+    .fitted <= deciles[3] ~ 0.2,
+    .fitted <= deciles[4] ~ 0.3,
+    .fitted <= deciles[5] ~ 0.4,
+    .fitted <= deciles[6] ~ 0.5,
+    .fitted <= deciles[7] ~ 0.6,
+    .fitted <= deciles[8] ~ 0.7,
+    .fitted <= deciles[9] ~ 0.8,
+    .fitted <= deciles[10] ~ 0.9,
+    .fitted <= deciles[11] ~ 1)
+  ) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_true_prop = mean(as.numeric(ED_ATNMT_BACHELORS)),
+    avg_pred_prob = mean(.fitted),
+    conf_diff =1.96*sqrt(avg_true_prop * (1-avg_true_prop)/n())
+  ) %>% ggplot(aes(y=avg_true_prop, x=x_deciles)) +
+    geom_line() +
+    # geom_bar() +
+    geom_errorbar(aes(ymin=avg_true_prop-conf_diff, ymax=avg_true_prop+conf_diff)) +
+    geom_abline(aes(intercept=0, slope=1), color="red") +
+    theme(legend.position="none") + labs(title = "Attaining Bachelor's - Decile Calibration Plot", x = "Average Predicted Probability", y = "Observed Frequency")
+
+```
+
+Although there are some deviances from the ideal line for the predicted probabilities greater than around 0.5, the line observed frequencies are still relatively close to the average predicted probabilities.
+
+```{r, eval=F}
+vif(ed_model_bachelors)
+```
+
+All VIF of the variables are less than 10, so there are no issues with multicollinearity in our model.
+
+## Sensitivity Analysis Without Imputed Data
+
+```{r}
+test_model_both = lm(TEST_COMP ~  RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS+ PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els)
+test_model_summary = summary(test_model_both)
+
+get_results_table(test_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Sensitivity Results: OLS Model for Test Composite Score")
+
+```
+
+
+
+```{r}
+ed_model <- glm(DROPPED_OUT ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, family="binomial")
+
+ed_model_summary = summary(ed_model)
+
+get_results_table_logistic(ed_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Sensitivity Results: Logistic Regression for Odds of Dropping Out of HS")
+
+```
+
+
+```{r}
+
+ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE +  MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, family = "binomial")
+
+ed_model_bachelors_summary = summary(ed_model_bachelors)
+
+get_results_table_logistic(ed_model_bachelors_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Sensitivity Results: Logistic Regression for Odds of Attaining Bachelor's")
+```
+
+```{r}
+# https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+ses_model = polr(factor(SESQU_2011) ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, Hess = TRUE)
+ses_model_summary = summary(ses_model)
+# ctable <- coef(ses_model_summary)
+# p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+# is_sig <- p <= 0.05
+# (ctable <- cbind(ctable, "exp(coef)" = exp(ctable[,"Value"]), "p value" = p, "sig"=is_sig))
+
+get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space", "Intercept (SES Quartile <= 1)", "Intercept (SES Quartile <= 2)", "Intercept (SES Quartile <= 3)"), "Sensitivity Results: Ordinal Logistic Regression for SES Status")
+```
+
