@@ -1,0 +1,741 @@
+---
+title: "Analyzing Familial and Educational Predictors of Student Outcome"
+author: "Christina Chen"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(mice)
+library(dplyr)
+library(ggplot2)
+library(MASS)
+library(lme4)
+library(mice)
+library(kableExtra)
+library(gridExtra)
+library(grid)
+library(tidyr)
+library(tidyverse)
+library(knitr)
+library(MASS)
+library(broom)
+library(rms)
+library(kableExtra)
+library(patchwork)
+library(car)
+
+# data file too large to push to git - split into two halfs in split_data.R
+# student_data1 = read.csv("els_student_first_half.csv")
+# student_data2 = read.csv("els_student_second_half.csv")
+# els = rbind(student_data1, student_data2)
+# els_original=els
+
+els_complete <- read.csv("els_imputed.csv")
+els <- read.csv("els_filtered.csv")
+```
+
+# Introduction
+Government spending on US education has been a long standing debate. In 1966, James S. Coleman conducted a survey for the federal government to address a section in the Civil Rights Act of 1964 "concerning the lack of availability of equal educational opportunities for individuals by reason of race, color, religion, or national origin." After collecting data on 650,000 students and teachers, he wrote a 700-page report "Equality of Educational Opportunity" stating that school resources matter less than family in influencing student outcome. Many took this as a sign that additional spending on education would make little difference. However, Coleman also found evidence of the "achievement gap," which illuminates test score disparities between rich and poor students [5]. It seems that if the money is spent in the right way, for example, in bridging the gap between school quality, extra spending does make a difference [1].
+
+The Coleman report continues to spur further studies on school spending and student success. A publication from 2015 "The Effects of School Spending on Educational and Economic Outcomes: Evidence from School Finance Reforms" found that a "10 percent increase in per-pupil spending...leads to 0.27 more completed years of education, 7.25 percent higher wages, and a 3.67 percentage-point reduction in the annual incidence of adult poverty." In addition, these effects were even greater for students from low socioeconomic backgrounds [3]. Another study "School Finance Reform and the Distribution of Student Achievement" from 2018 draws on student-level data to identify the effects of school finance reforms that began in 1990 on "relative achievement of students in high- and low-income school districts." They found that school finance reforms on spending in low-income school districts matter as well, as they lead to improvement in student achievement, measured by test scores [2].
+
+## Research Questions
+For our analysis, we investigate whether familial or educational factors are larger determinants of student success. 
+
+First, we define familial and educational factors by categorizing all predictors of interest under these two groups. Using the familial predictors, we can evaluate whether there is credit to Coleman's claim that family is a larger determinant than school resources of student success. For the educational predictors, we can analyze the association of school finances and student success. However, we will not be looking directly at school expenditure and revenue since the data is not available in the dataset used. Instead, we will analyze variables that could be correlated with expenditure, such as building conditions, teacher salary, and access to resources. Since public school revenue is related to local taxes, we will also be looking at socioeconomic factors on the school level.
+
+Next, to measure student success, we chose to evaluate more than just high school standardized test scores, since we believe that student success is not something that can be measured by a single test while a student is still developing. By analyzing variables that are determined years after high school, we hope to get a more holistic sense of student outcome. Therefore, we measure student success through standardized test scores in 10th grade, level of education attained 10 years after 10th grade, and socioeconomic status 9 years after 10th grade.
+
+
+## Data
+The data come from [National Center for Education Statistics (NCES)](https://nces.ed.gov/OnlineCodebook/Session/Codebook/4cb636e5-c72b-42c0-806b-3c55507db6a6) from the Education Longitudinal Study of 2002. In this study, students were surveyed three times: in 2002, as high school sophomores; in 2006, two years after graduation; in 2012, eight years after graduation. The data is free for public use, with the agreement of the NCES Data Usage Agreement. There are over 16,000 observations on the student level [4].
+
+## Variables and Exploratory Data Analysis
+
+Because of the number of variables used in the models, there are many observations that have missing data for at least one of the variables. Around half of the variables were missing less than 1000 observations, while some were missing around 3000-4000. The variable with the highest amount of data missing is the variable for how far a math/English teacher pushed a student to go in school, with around 4000 missing observations for both math and English teachers. e use the `mice` package to impute the data using the predictive mean-matching method. To support our results with imputed data, we perform sensitivity analysis with non-imputed data, which still showed similar significance in the three models for the predictors of how far a math/English teacher pushed a student to go in school.
+
+Due to the small sample sizes within the levels of combinations of the categorical variables and to better take into account their ordinal nature, we transform them into numeric variables. The variables of how far the parents pushed the students to go in school and the parents' highest level of education are transformed into numeric variables that represent the number of additional years of education past 9th grade for each level indicated. We acknowledge the limitations of this, as there are assumptions made that may not be accurate for all observations. For example, for levels of education that denote only attending, and not completing, high school or college, we arbitrarily set a number of years of education that would fall under the category, as the exact number of years is unknown. 
+
+Additionally, there is a set of categorical variables that denote how much learning is hindered by a particular environmental factor from a scale of 1-4, where 1 denotes no learning hindrance. Again, sample size is a problem, as our models include many categorical variables. Therefore, to optimize the number of levels that have at least 1 observation and since we do not assume linearity between each level of the variable, we collapse these categorical variables into binary indicators, instead of converting them to numeric variables. We encode each learning hindrance variable into a binary of whether or not students face any learning hindrance (levels 2-4) from the specific environmental factor. Although this results in some loss of information that's gained from the differences between levels 2, 3, and 4, we believe that this is necessary to guarantee sufficient sample sizes to generate the models.
+
+
+```{r fig.height = 4, fig.width = 7, fig.cap="Familial Predictors: Positive Relationship between Two Parent Families and Higher Education Attainment"}
+els$ED_ATNMT = factor(els$ED_ATNMT, levels=c( "No GED", "GED", "Associates/\nSome Undergrad", "Bachelors", "Master's/\nPost-Bacc. Cert.", "PhD"))
+
+els %>%
+  filter(!is.na(ED_ATNMT), !is.na(FAM_COMP)) %>%
+  ggplot() +
+  geom_bar(aes(x=ED_ATNMT, fill=FAM_COMP), position = "fill") +
+  labs(x="Educational Attainment", y="Proportion", fill="Family Composition") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.7, hjust=0.5)) 
+
+```
+
+From Figure 1, we see that for higher levels of educational attainment, the proportion of two-parent families increases, while the proportion of those with a single parent or absent parent decreases. This shows an association between family factors and student success, perhaps somewhat backing part of Coleman's claim. In the following section, we will control for confounding variables and analyze more thoroughly the importance family factors, such as family composition, in comparison to educational ones.
+
+
+```{r, results='hide', warning=FALSE}
+
+els <- els %>%
+  mutate(FREE_LUNCH_CATEGORIES_1 = case_when(
+    FREE_LUNCH_CATEGORIES == "<=5%" | FREE_LUNCH_CATEGORIES == "<=30%" ~ "<=30% Free Lunch",
+    FREE_LUNCH_CATEGORIES == "<=50%" ~ "<=50% Free Lunch",
+    FREE_LUNCH_CATEGORIES == "<=75%" ~ "<=75% Free Lunch",
+    FREE_LUNCH_CATEGORIES == ">75%" ~ ">75% Free Lunch"
+  ))
+els$FREE_LUNCH_CATEGORIES_1 = factor(els$FREE_LUNCH_CATEGORIES_1, levels = c("<=30% Free Lunch", "<=50% Free Lunch", "<=75% Free Lunch", ">75% Free Lunch"))
+
+els <- els %>%
+  mutate(SES_1 = case_when(
+    SESQU_2011 == 1 | SESQU_2011 == 2 ~ "Lower",
+    SESQU_2011 == 3 | SESQU_2011 == 4 ~ "Upper",
+  ))
+
+els_new <- els[,c("LH_LACK_OF_SPACE", "SES_1", "FREE_LUNCH_CATEGORIES_1", "TEST_COMP_QU")]
+
+
+# https://stats.idre.ucla.edu/r/faq/how-do-i-perform-multiple-imputation-using-predictive-mean-matching-in-r/
+els_imputed <- mice(els_new, m=1, maxit = 50, seed = 500, method="pmm")
+
+
+els_complete_vis <- complete(els_imputed, 1)
+```
+
+```{r, fig.height = 4, fig.width = 7, fig.cap="Educational Predictors: Lack of Space Negatively Correlated with Test Scores, Especially as School Wealth Decreases"}
+
+# els_complete_vis %>%
+#   filter(!is.na(LH_LACK_OF_SPACE), !is.na(SES_1), !is.na(FREE_LUNCH_CATEGORIES_1)) %>%
+#   ggplot() +
+#   geom_bar(aes(x=LH_LACK_OF_SPACE, fill=SES_1), position="fill")+
+#   labs( y="Student Standardized Test Score Composite", x="Lack of Space is a Learning Hindrance", title="SES from Schools with Higher % students with Free Lunch Decrease as Learning Hindrance Grows") +
+#   facet_grid(.~FREE_LUNCH_CATEGORIES_1)
+
+els_complete_vis %>%
+  filter(!is.na(LH_LACK_OF_SPACE)) %>%
+  ggplot() +
+  geom_bar(aes(x=LH_LACK_OF_SPACE, fill=factor(TEST_COMP_QU)), position="fill")+
+  labs( y="Student Standardized Test Score Composite", x="Lack of Space is a Learning Hindrance", fill="Test Composite\nQuantile") +
+  facet_grid(.~FREE_LUNCH_CATEGORIES_1)
+```
+
+Next, we look at the educational side with Figure 2. Previous literature mentions how increased spending to decrease class sizes helps to bridge the achievement gap between wealthy and poor districts. To represent the wealth of a district, we are using the percentage of students that receive free lunch, since we assume it measures general socioeconomic status of the area of the school. 
+
+Figure 2 shows an increased association between lack of space as a learning hindrance and student test scores for schools with more than 75% of students with free lunch, whereas the association seems positive or very small in schools with lower percentages of students with free lunch. This might suggest a magnified correlation between these two variables in poorer districts, aligning with previous findings. Therefore, we will include an interaction between free lunch percentage and whether learning is hindered by a lack of space in our models.
+
+
+# Methodology
+In order to compare the correlations between familial and school factors in student outcome, we create models for all of our outcomes of interest so that confounding variables are accounted for. We use models that include predictors from both groups so that the effect sizes of variables of interest are adjusted for by confounding variables in not only the group it belongs in, but also by predictors in the other group. This will allow us to more accurately interpret effect sizes of predictors. 
+
+Then, to investigate differences between the two groups of predicts, we will compare the magnitudes of coefficients of the significant predictors. Since most of the variables we are using are categorical, coefficient magnitudes will be compared directly. In cases where variables are continuous, we will take into account an average value of the variable to fully quantify the effect size for comparison. For each model, we will categorize familial and educational predictors into three axes for easier comparison. 
+
+The first axis compares the financial situation between the student's home and school. To do this, we compare the student's family's SES status composite against the type of school he/she attends, whether a majority of the students there receive free lunch, and the lowest teacher salary. Although the type of school does determine how much money is spent on the students and school facilities, it also represents the wealth of the student's family, since only wealthy families are able to pay for private schools. However, since family SES is already adjusted for, we can take this to be largely the effect of the school related effects. In addition, we are using the indicator of whether a majority of the students receive free lunch as a proxy for the financial environment the school resides in. It may include more information about whether the school is able to give free lunch to those who need it, which is a limitation that can be seen in the results.
+
+The second axis we use is the motivational factors between home and school. We look at the highest number of years of education the student's parents have received and also how many years of education they hope for the student. On the school side, we analyze the number of years of education the student's math and English teachers want the student to complete. In addition, we take into consideration the percentage of sophomores who are in a college preparation program at school.
+
+The third axis is the difference in correlations between the conditions at home and at school. We compare access to technology by looking at whether the student has access to a computer and Internet at home and whether or not student learning is hindered at school by a lack of technology. In addition, we investigate home conditions, such as family composition, and school conditions, such as learning hindrances.
+
+Finally, once we have analyzed predictor effect sizes across axes within each model, we will perform a comparison of each of these axes among the models. This will allow us to more thorougly investigate whether familial or educational factors are a larger determinant, as we analyze various outcomes of student success through different groupings of factors.
+
+## Standardized Test Composite Score
+
+Our first measure of student success is standardized test composite score, which combines the math and reading scores. Since test composite is a continuous variable, we decided to an ordinary least squares model specified below:
+
+
+\begin{align*}
+    \text{test composite}_i = &\beta_0
+    +\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i + \beta_{4} 1(\text{race=White})_i \\
+    +&
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i \\
+    +& \epsilon_i, \ 
+    \text{where } \epsilon_i \stackrel{i.i.d.}{\sim} \mathcal{N}(0, \sigma^2)
+\end{align*}
+
+OLS models have model assumptions of independence, normality, homoscedasticity (constant variance), and linearity between predictors and the response. Although observations are sampled from individual students, there may be problems with independence, since students may come from the same school. Therefore, friend groups, school conditions, and other similarities between experiences of students in the same school may affect independence. This is a limitation of our model, as the actual school of each student is not available in the data, so it cannot be accounted for. For future analysis, this data can be requested from the NCES to create a mixed effects model. To assess the other assumptions and multicollinearity, model diagnostics are analyzed in the Appendix.
+
+
+## Socioeconomic Status
+
+Another measure of student success is socioeconomic standing after leaving school. We analyze the student's SES quantile 9 years after the base year survey when the student was in 10th grade. The data includes a measure of SES, and we performed sensitivity analysis using linear regression of this measure, but the model performed poorly. In addition, it is easier to interpret the outcome as quantiles, since the data source does not make it clear how the SES quantifications are calculated. Therefore, since the outcome is an ordinal categorical variable, we use ordinal logistic regression as follows:
+
+
+\begin{align*}
+logit(&P(\text{SES quantile} \leq x)) = \beta_0
+    - (\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i + \beta_{4} 1(\text{race=White})_i \\
+    +&
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i) \\
+& \forall x\in{1,2,3,4}
+\end{align*}
+
+<!-- https://bookdown.org/mpfoley1973/data-sci/ordinal-logistic-regression.html -->
+
+Ordinal regression has four assumptions: response variable is ordinal, explanatory variables are continuous or categorical, no multicollinearity, and that odds are proportional. The response variable is ordinal because of the nature of quantiles. All explanatory variables used are continuous or categorical. The variables that have an ordinal nature are accounted for by making them numerical or treating them as categorical variables. Multicollinearity is tested for using VIF, and a full likelihood ratio test is used to test for proportionality (see Appendix).
+
+
+
+## Education Attainment
+
+Our third measure of success is the level of education the student attained. Since there are 6 levels that we coded from the data and our variables include lots of categorical variables, there is a high possibility of a small sample size for many of the groupings of levels between the predictors and outcome. Therefore, we analyze models for outcomes of whether a student dropped out of high school and whether a student graduated a 4-year college using logistic regression models, as defined below:
+
+
+\begin{align*}
+logit(& P(\text{Dropped Out HS}_i = Yes)) = \beta_0
+    +\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i \\+& \beta_{4} 1(\text{race=White})_i 
+    +
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i
+\end{align*}
+
+\begin{align*}
+logit(& P(\text{Received Bachelor's}_i = Yes)) = \beta_0
+    +\beta_1 1(\text{race=API})_i 
+    + \beta_2 1(\text{race=Black})_i
+    + \beta_{3} 1(\text{race=Hispanic})_i \\+& \beta_{4} 1(\text{race=White})_i 
+    +
+    \beta_{5} 1(\text{family composition=two parents})_i +  \beta_{6} \text{SES}_i 
+    + \beta_{7}(\text{parents' \# years ed.})_i \\+& \beta_{8}(\text{\# years ed. parents desire for student})_i + \beta_{9}1(\text{has computer/internet at home})_i \\+&  \beta_{10}1(\text{school type=public})_1 + \beta_{11}(\text{\# years ed. math teacher desires for student})_i \\+& \beta_{12}(\text{\# years ed. English teacher desires for student})_i
+    +\beta_{13}(\text{\% sophomores in college prep program})_i \\+& \beta_{14}(\text{lowest teacher salary (thousands)})_i + \beta_{15}1(\text{percentage students with free lunch} > 50\%)
+    \\+& \beta_{16}1(\text{learning hindered by lack of space})_i + \beta_{17}1(\text{learning hindered by poor building conditions})_i \\+& \beta_{18}(\text{learning hindered by poor heating/air/light})_i +  \beta_{19}(\text{learning hindered by lack of text/supplies})_i \\+& \beta_{20}(\text{learning hindered by poor facilities})_i  + \beta_{21}(\text{learning hindered by  poor technology})_i \\+& \beta_{22}1(\text{percentage students with free lunch} > 50\%)_i1(\text{learning hindered by lack of space})_i
+\end{align*}
+
+The assumptions for logistic regression are a binary nature of the dependent variable, independence, and no linearity between independent variables and the log odds. The independence assumption may be violated, as mentioned in assumptions for the OLS model for standardized test score. There is no linearity between the independent variables and the log odds, as there are over 16,000 observations. In addition, our model output shows that there is no linearity, as there are no extremely inflated coefficients.
+
+As for other conditions to note, multicollinearity is tested for using VIF (see Appendix). Additionally, as mentioned earlier, since there are many categorical variables used in our model, there are many combinations of levels. Although many categorical variable levels were combined to reduce the total number of samples needed, there are still a few levels that have only a couple of samples. Therefore, there is still imbalanced data. However, since we are only performing inference, we will not be analyzing the less frequent combinations of variables.
+
+# Results
+
+Results tables for the four models are shown below. We highlight the terms that are significant with a p-value threshold of 0.05, with red being familial predictors and blue being educational predictors.
+
+## Standardized Test Composite Score
+
+```{r}
+els_complete <- read.csv("els_imputed.csv")
+els <- read.csv("els_filtered.csv")
+
+test_model_both = lm(TEST_COMP ~  RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS+ PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
+test_model_summary = summary(test_model_both)
+
+get_results_table <- function(mod_summary, var_names_formatted, caption) {
+  coef <- (formatC(round(mod_summary$coefficients[,1], 3), format='f', digits=3))
+  std_error <- round(mod_summary$coefficients[,2], 3)
+  p_val <- formatC(round(mod_summary$coefficients[,4], 3), format='f', digits=3)
+  p_val_formatted <- c()
+  for(i in 1:length(p_val)) {
+    if (p_val[i] < 0.001) {
+      p_val_formatted = c(p_val_formatted, "<0.001")
+    } else {
+      p_val_formatted = c(p_val_formatted, as.character(p_val[i]))
+    }
+  }
+  table <- cbind(coef,std_error)
+  table <- cbind(table, p_val_formatted)
+  colnames(table) = c("Coef","Std. Error", "P-value")
+  rownames(table) = var_names_formatted
+  # tb <- knitr::kable(table, booktabs=T)
+  #https://community.rstudio.com/t/aligning-tables-in-the-center/6699/2
+  sig = which(p_val<0.05)
+  ret <- table %>%
+    kable(booktabs = T, caption=caption) %>%
+    kable_styling(latex_options = "hold_position", full_width = F) %>%
+    # row_spec(c(2:10), bold = F, color = "black", background = "#E3C5C5") %>%
+    # row_spec(c(11:21), bold = F, color = "black", background = "#C5D0E3") %>%
+    row_spec(sig[ifelse(sig<=10 & sig>=2, TRUE,FALSE)], background = "#E3C5C5") %>%
+    row_spec(sig[ifelse(sig<=23 & sig>=11, TRUE,FALSE)], background = "#C5D0E3")
+  return(ret)
+}
+
+
+get_results_table(test_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: OLS Model for Test Composite Score")
+
+```
+
+The student's family's socioeconomic status has a positive relationship with test composite score: controlling for other variables, when SES increases by one unit, the student's test composite score increases by an average of 2 points. On the other hand, we can look at variables that serve as proxies of the finances of the school. The type of school a student attends is not significantly associated with the student's test composite score. However, whether or not a student went to a school where the majority of students received free lunch is significantly correlated with test composite score. If a student went to a school where the majority of students received free lunch, test scores decreased by 1 point on average, with all else held constant. The interaction between learning hindrance due to a lack of space and whether a majority of the students have free lunch is significantly associated with the odds of dropping out. Therefore, the association between whether a majority of students have free lunch and test score depends on learning hindrance due to a lack of space. When looking at schools where the majority of students receive free lunch, students at these schools where learning is hindered by a lack of space have, on average, a 0.714 decrease in test scores, holding all else constant. However, if there is a learning hindrance due to lack of space, without the majority of students with free lunch, average test score is not changed. Therefore, as we found a negative association for  poorer schools that also face space limitations, this tangentially supports the findings in previous literature that showed a larger positive effect when funding poorer schools that also had a lack of space for students. Therefore, in terms of financial factors, it seems that finances of the student's home has a higher magnitude of correlation with test composite; however, when the student's school has space constraints, the two groups of predictors are leveled in size of determining test score.
+
+External motivational factors from both home and school are significantly associated with test composite. For each additional year that the student's parent(s) push him/her to go in school, his/her test composite score increases by 0.475 points, all else held constant. On the other hand, it seems that with each extra year the student's math or English teacher pushes him/her to achieve in school, his/her test composite increases by more than a point on average, while adjusting for other factors. In addition, the percentage of sophomores in a college prep program at the time of the base year survey is also significantly correlated with student test composite score. However, with every one percent increase of sophomores who were in a college prep program at school, the average test score increases by only 0.005, adjusting for other variables. Taking all of these factors into account, the student's school environment through external motivation seems to be more strongly correlated with the outcome.
+
+Comparing home and school factors, the student's access to technology at home is significant, while learning hindrance due to lack of technology at school is not. In terms of the student's access to technology at home, students who have a computer and internet at home score, on average, 1.13 points higher on the standardized test than students who do not have access to either at home, with all other variables controlled. In addition, race is a significant predictor as well, with indicators of the student being Black, Hispanic, or API negatively associated with the test composite score when compared to American Indian/Alaska Native/Mixed students, on average. Test composite score is negatively associated with learning hindrances at school, namely by poor facilities (arts, science labs, libraries) and by poor building conditions, on average. However, the outcome is actually positively correlated with learning hindrances due to poor heating/air/light. This could be a source of future investigation, since it may be affected by other confounding variables. Due to the effect sizes of a student's technology access at home and their race, we conclude that home conditions are more strongly correlated with test composite.
+
+Taking into account all of the variables that are significantly associated with test composite, it seems that the home factors are more strongly correlated with test composite in terms of environmental conditions and finances. However, if the school is on the poorer side, with more than half of students that receive free lunch, and also faces a lack of space, then educational factors may overweigh familial factors on the financial axes. Influence from adults seem to be more strongly correlated with the outcome at school than at home.
+
+## Education Attainment
+
+### Odds of Dropping Out of High School
+
+```{r}
+get_results_table_logistic <- function(mod_summary, var_names_formatted, caption) {
+  coef <- (formatC(round(mod_summary$coefficients[,1], 3), format='f', digits=3))
+  std_error <- round(mod_summary$coefficients[,2], 3)
+  exp_val <- (formatC(round(exp(mod_summary$coefficients[,1]), 3), format='f', digits=3))
+  p_val <- round(mod_summary$coefficients[,4], 3)
+  p_val_formatted <- c()
+  for(i in 1:length(p_val)) {
+    if (p_val[i] < 0.001) {
+      p_val_formatted = c(p_val_formatted, "<0.001")
+    } else {
+      p_val_formatted = c(p_val_formatted, as.character(p_val[i]))
+    }
+  }
+  table <- cbind(coef,exp_val )
+  table <- cbind(table,std_error)
+  table <- cbind(table, p_val_formatted)
+  colnames(table) = c("Coef","Exp(Coef)","Std. Error", "P-value")
+  rownames(table) = var_names_formatted
+  # tb <- knitr::kable(table, booktabs=T)
+  #https://community.rstudio.com/t/aligning-tables-in-the-center/6699/2
+  sig = which(p_val<0.05)
+  ret <- table %>%
+    kable(booktabs = T, caption=caption) %>%
+    kable_styling(latex_options = "hold_position", full_width = F) %>%
+    # row_spec(c(2:10), bold = F, color = "black", background = "#E3C5C5") %>%
+    # row_spec(c(11:21), bold = F, color = "black", background = "#C5D0E3") %>%
+    row_spec(sig[ifelse(sig<=10 & sig>=2, TRUE,FALSE)], background = "#E3C5C5") %>%
+    row_spec(sig[ifelse(sig<=23 & sig>=11, TRUE,FALSE)], background = "#C5D0E3")
+  return(ret)
+}
+
+ed_model <- glm(DROPPED_OUT ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family="binomial")
+
+ed_model_summary = summary(ed_model)
+
+get_results_table_logistic(ed_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Dropping Out of HS")
+
+```
+
+The SES of a student's family is not significantly associated with the odds of dropping out of high school. However, if the student attends a public school, their odds of dropping out increases by a factor of 1.565, on average, with all else held constant. Therefore, it seems that educational factors are more correlated with the odds of dropping out.
+
+In addition, the external urges from teachers are significantly associated with the outcome, while the urges from the student's parents are not significant. For every additional year a math or English teacher pushes the student to reach in school, the odds of him/her dropping out decreases by a factor of 0.7, on average, with all else held constant. Therefore, this axis also shows that school factors are more strongly correlated with the odds of dropping out.
+
+When investigating general conditions at home and at school, it seems that the home factors are the only significant main effects using a p-value of 0.05. If a student has two parents, the odds of him/her dropping out of high school decreases by a factor of 0.77, on average, in comparison to a student who lives in a single parent or absent parent home, all else held constant. In addition, access to technology at home and whether or not a student is white is also negatively correlated with the odds of dropping out, on average, when controlling for other factors. 
+
+When modeling odds of dropping out of high school, educational factors are more strongly associated over home factors when looking at finances and external motivation. However, the opposite is true when looking at environmental conditions. 
+
+### Odds of Attaining Bachelor's Degree
+
+```{r}
+
+ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE +  MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family = "binomial")
+
+ed_model_bachelors_summary = summary(ed_model_bachelors)
+
+get_results_table_logistic(ed_model_bachelors_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Attaining Bachelor's")
+```
+
+When looking at wealth factors, a student's family's SES status composite is significantly positively associated with the odds of attaining a Bachelor's degree. For every one increase in SES composite, the odds of the student attaining a Bachelor's degree increases by a factor of 1.6, on average, adjusting for other variables. On the school level, whether or not the high school attended was a public school is significantly negative correlated with the outcome, at a factor of 0.7, on average, when controlling for other factors. In addition, the lowest teacher salary is also significantly positively associated with the outcome, albeit with a small effect size. Since SES is a continuous variable, the effect size can be larger than just 1.5 with more than a singular unit difference in SES. Therefore, it seems that familial factors are larger determinant of the odds of attaining a Bachelor's degree.
+
+When investigating external desires from adult figures, all of the predictors are significant, but we see that the effect sizes of the variables representing the number of years of education the student's teachers hope for him/her are greater than that for the student's parents. However, the effect size of the parent predictor is only a little above 1, so it is very minimal when explaining the odds of attaining a Bachelor's. Therefore, it seems that external motivation from school is more strongly associated with the outcome.
+
+In terms of conditions at home and at school, the coefficient for the student's access to technology home is significantly positively associated with the odds of attaining a Bachelor's degree, while that for tech access at school is not. In addition, whether or not a student is Asian or White is significantly positively correlated with the outcome as well. Finally, the number of years of education that a student's parents have completed is also significantly associated with the outcome; however, the effect size is marginal. Overall, conditions at home are larger determinants of the odds of attaining a Bachelor's degree.
+
+In explaining the odds of attaining a Bachelor's degree, it seems that familial factors are larger determinants along the financial and condition factors. However, educational predictors are once again more strongly associated with the outcome along the external motivation axis.
+
+## Socioeconomic Status Quantile
+
+```{r}
+# https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+ses_model = polr(factor(SESQU_2011) ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, Hess = TRUE)
+ses_model_summary = summary(ses_model)
+# ctable <- coef(ses_model_summary)
+# p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+# is_sig <- p <= 0.05
+# (ctable <- cbind(ctable, "exp(coef)" = exp(ctable[,"Value"]), "p value" = p, "sig"=is_sig))
+
+get_results_table_ordinal <- function(mod_summary, var_names_formatted, cap) {
+  coef <- (formatC(round(mod_summary$coefficients[,1], 3), format='f', digits=3))
+  std_error <- formatC(round(mod_summary$coefficients[,2], 3), format='f', digits=3)
+  exp_val <- formatC(round(exp(-mod_summary$coefficients[,1]), 3), format='f', digits=3)
+  p_val <- formatC(round(pnorm(abs(mod_summary$coefficients[, "t value"]), lower.tail = FALSE) * 2, 3), format='f', digits=3)
+  p_val_formatted <- c()
+  for(i in 1:length(p_val)) {
+    if (p_val[i] < 0.001) {
+      p_val_formatted = c(p_val_formatted, "<0.001")
+    } else {
+      p_val_formatted = c(p_val_formatted, as.character(p_val[i]))
+    }
+  }
+  table <- cbind(coef,exp_val )
+  table <- cbind(table,std_error)
+  table <- cbind(table, p_val_formatted)
+  colnames(table) = c("Coef","Exp(-Coef)","Std. Error", "P-value")
+  rownames(table) = var_names_formatted
+  # tb <- knitr::kable(table, booktabs=T)
+  #https://community.rstudio.com/t/aligning-tables-in-the-center/6699/2
+  sig = which(p_val<0.05)
+  ret <- table %>%
+    kable(booktabs = T, caption=cap) %>%
+    kable_styling(latex_options = "hold_position", full_width = F) %>%
+    # row_spec(c(2:10), bold = F, color = "black", background = "#E3C5C5") %>%
+    # row_spec(c(11:21), bold = F, color = "black", background = "#C5D0E3") %>%
+    row_spec(sig[ifelse(sig<=9 & sig>=1, TRUE,FALSE)], background = "#E3C5C5") %>%
+    row_spec(sig[ifelse(sig<=22 & sig>=10, TRUE,FALSE)], background = "#C5D0E3")
+  return(ret)
+}
+
+get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space", "Intercept (SES Quartile <= 1)", "Intercept (SES Quartile <= 2)", "Intercept (SES Quartile <= 3)"), "Results: Ordinal Logistic Regression for SES Status")
+
+
+# els_complete$SESUPPER_2011 = factor(els_complete$SESQU_2011 == 3 | els_complete$SESQU_2011 == 4)
+# ses_model = glm(SESUPPER_2011 ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+#                        FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete, family = "binomial")
+# ses_model_summary = summary(ses_model)
+# get_results_table_logistic(ses_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Results: Logistic Regression for Odds of Being in Upper SES")
+```
+
+The student's family's SES status is significantly associated with the odds of being in a lower SES quantile. The odds a student is in an SES quantile lower than 1, 2 or 3, as an adult, decreases by a factor of 0.717 for every one increase in his/her family's SES status composite, on average, all else held constant. On the school side, if the student attended a public school or went to a school where a majority of students received free lunch, the odds of being in a lower SES quantile as an adult increases. In addition, for students who attend schools where a majority of students receive free lunch, the odds increases by a factor of 1.234. Looking at effect sizes, it seems that these home and school financial factors are relatively similar in this model.
+
+In terms of motivation stemming from home or school, the push from teachers is a larger determinant of the outcome than the push from parents. For every additional year that the parents push their student to achieve in school, the average odds of being in a lower SES quantile only decreases by a factor of only 0.95, very close to 1, with all else adjusted for. The percentage of sophomores in a college preparation program is also significant; however, the effect size is very minimal as well. Therefore, it seems that the number of years that teachers push a student, an educational motivational factor, is the most correlated with student SES outcome 9 years after their sophomore year.
+
+Once again, whether a student has access to a computer and internet at home is significantly correlated with the outcome. Students who have this technology access are, on average, 0.74 times less likely to be in the lower SES quantiles, all else held constant. On the other hand, learning hindrance at school due to technology is not significant in the model. In terms of other conditions at school, a student is more likely to be in a lower SES quantile if their learning was hindered by a lack of space, poor building conditions, and poor facilities. An interesting result is the negative association of the outcome with whether student learning is hindered by a poor heating/air/light. Overall, the familial and educational factors seem similar in effect sizes for determining the odds of being a lower SES quantile.
+
+Therefore, when predicting the odds of being below a particular SES quantile when the student is an adult, the effect sizes of school factors are pretty leveled in magnitude compared with the effect sizes of home factors when looking at the financial and condition axes. However, educational factors are larger determinants along the external motivation axis, and familial factors are larger determinants along the environmental condition axis.
+
+```{r}
+# ses_model_lm = lm(log(SES_2011+0.1) ~ SCHOOL_TYPE+SCHOOL_URBAN+DROPOUT_PREV_PGM+VOCATIONAL_PGM  + RACE + FAM_COMP + SES + PT_ED_YEARS + PT_PUSH_YEARS + COMP_HOME + HAS_INTERNET + TEACHER_TECH_ACCESS + LIBRARY_COMPUTER_LAB + PERC_SOPH_COLLEGE_PREP*FREE_LUNCH_CATEGORIES + LOWEST_TEACHER_SALARY_THOUSANDS +LH_POOR_BUILDINGS+LH_POOR_HEATING_AIR_LIGHT+LH_LACK_TEXT+LH_LACK_OF_SPACE+LH_LACK_COMPUTERS+LH_LACK_TECH_FACILITIES+LH_POOR_LIB+LH_POOR_SCIENCE_LAB+LH_POOR_ARTS_FACILITIES , data = els)
+# 
+# summary(ses_model_lm)
+# plot(ses_model_lm)
+
+```
+
+
+## Model Comparisons
+
+Looking at familial predictors, environmental conditions at home are large determinants of for all facets of student success that we investigated. In addition, financial familial predictors are large determinants of test composite score and the odds of attaining a Bachelor's degree.
+
+For educational predictors, financial predictors in this group were large determinants of SES quantile and odds of dropping out. They were only large determinants of test composite score for poorer schools with a majority of students that receive free lunch. Notably, external motivation from school is a large determinant of student success across all models.
+
+## Sensitivity Analysis
+Results from the sensitivity analysis done using non-imputed data is included in the Appendix. In comparison to the main models, the effect sizes of the predictors are similar. Although not all of the predictors that are significant in the main models are significant in the sensitivity analysis models, this is expected due to the lack of observations for certain levels in the original data set. In addition, the predictors of the number of years of education that a student's math and English teacher push had the highest number of missing observations. Even so, they were still both significant in all of the sensitivity analysis models. Therefore, the sensitivity analysis supports our results.
+
+
+
+# Discussion
+Through the four models, our analysis has addressed our research question of analyzing if educational or familial predictors are larger determinants of student success. We look at four measures of student outcome that span the trajectory of a student from 10th grade into adulthood: standardized test score, odds of dropping out of high school, odds of attaining a Bachelor's degree, and socioeconomic status as an adult. Then, in evaluating the sizes of predictors of each group, we look specifically at financial, external motivation, and environmental condition predictor groups.
+
+An interesting conclusion of our analysis is the strong association between external motivation from teachers at school with all four outcomes. Therefore, when hiring teachers, schools should place an emphasis to look for teachers who have a potential to truly invest emotionally in and build relationships with their students. 
+
+In terms of outcomes related to high school, an important finding is that on the financial and condition axes, familial predictors are the larger determinants of test composite score. Although this does not allow us to conclude an insignificance of funding in schools due to the lack of data that represents funding, this aligns with Coleman's findings in his paper that showed that familial factors were indeed significant in correlation to test scores. However, we see that for schools in poorer districts (or have a majority of students who receive free lunch), educational financial predictors actually are large determinants. When looking at another high school related outcome, the odds of dropping out, educational factors become the larger determinants along the financial axis. Therefore, our analysis demonstrates the benefits of investigating student success past solely test score, since attaining a GED is an achievement in and of itself that displays student success. Our conclusions support the findings in the 2015 study that showed that a 10% of an increase in spending per student lead to higher student achievement, more specifically in the completed years of education and wages, an effect they emphasized was magnified for low socioeconomic students. More practically, our results show the need for lawmakers to prioritize investment in reducing class sizes or finding larger spaces at schools in less wealthy districts.
+
+Past high school, looking at the odds of attaining a Bachelor's degree, we see a strong association of familial financial predictors and familial condition predictors, which is possibly due to the simple need for financial and environmental support for college. For example, money for tuition usually comes from the student's family. For the outcome of student's SES quantile as an adult, we see that familial and educational predictors are both similarly associated with the outcome when looking at the financial and condition axes. A large component of the educational predictor is the school type. Therefore, it is possible that the communities built within private schools, which would be comprised of students from wealthier families, produce a similar bubble of financially successful students in the future. To further investigate this, predictors related to a student's friends at school could be included to look at the financial status of a student's community.
+
+A limitation of our models is the possible violation of the independence assumptions, as mentioned previously. This could be addressed by getting access to the full dataset and using a mixed effects model using a student's school. Another limitation is that we are not directly looking at educational financial predictors, such as school funding, but rather proxies, such as the percentage of students with free lunch and the school type. Therefore, these may capture other effects that are not directly correlated with school spending. Next, a limitation is the way that familial and educational predictors were compared using the axes. These axes were created for easier comparison and analysis of association strength of the predictor groups. However, these probably are not completely separate groupings. For example, financial effects may very be well reflected in the conditions factors, as funding is related to the quality of environment. Finally, there is the limitation of the multitude of categorical variables and the need to collapse levels to increase sample size. Therefore, this resulted in a loss of data, and these categorical levels may be handled in other ways to further support our results. However, we did perform sensitivity analyses which supported our results with imputed data.
+
+The data itself is reliable, as it comes from a reputable source and from a long term study. However, a possible source of ambiguity is the learning hindrance variables, since they are based on someone's subjective opinion on how much learning is hindered based on a specific condition. However, our use of a binary encoding for these variables may evade this issue.
+
+An interesting route for further analysis would be to include the test composite score in the other models. This may shed some light on some sort of indirect significance of familial or educational predictors on student outcomes that come after mere test scores. Additionally, it may be helpful to compare p-values, in addition to coefficient sizes, when comparing familial and educational factors. This may lead to stronger results, which could align more with the sensitivity analysis results, as variables with extremely small p-values in the main models are probably more likely to be significant in the sensitivity analyses with non-imputed data.
+
+Our analysis investigated multiple facets of student success, which illuminated interesting findings surrounding areas to focus on when funding schools or hiring teachers. In addition, we found areas that could warrant for further investigation, such as models with more predictors. Overall, we believe that the use of multiple measures of student outcome, instead of solely standardized test scores, bring more depth to the debate surrounding school funding.
+
+\newpage
+
+# Appendix
+## Standardized Test Composite Score
+
+```{r}
+# plot(test_model_both)
+# car::vif(test_model_both)
+```
+
+```{r, warning=F}
+model.lm = test_model_both
+model.lm.aug <- augment(model.lm, type.predict = "response")
+resid_plot <- model.lm.aug %>%
+  ggplot() +
+  geom_point(aes(x = .fitted, y = .std.resid)) +
+  geom_hline(aes(yintercept = 0), color = "red")+
+  labs(x = "Predicted Test Composite",
+       y = "Residuals")
+```
+
+```{r, fig.cap = "Model Diagnostic Plots: Residual vs. Predicted (Upper Left), QQ Plot (Upper Right), Distribution of Residuals (Lower Left), Vif Values (Lower Right)", warning=F}
+qq_plot <- ggplot(model.lm.aug, mapping = aes(sample = .std.resid)) +
+  stat_qq() + 
+  stat_qq_line() +
+  labs(x = "Theoretical",
+       y = "Sample")
+
+vif_plot <- ggplot(tidy(rms::vif(model.lm)) %>%
+               mutate(var.num = row_number())) +
+        geom_point(aes(x = var.num, y = x)) +
+        geom_hline(yintercept = 10, color = "red") +
+        labs(x = "Variable Number",
+             y = "Vif Values")
+resid_dist <- ggplot(data = model.lm.aug) +
+  geom_histogram(aes(x = .std.resid), binwidth = 0.4) +
+  labs(x = "Residuals")
+
+resid_plot+ qq_plot+resid_dist+vif_plot
+```
+
+There is no pattern in the residual plot, and they are normally distributed around 0. In addition, the QQ-plot shows a very close line to the ideal diagonal. The VIF are also all under 10, so there is no extreme multicollinearity. Therefore, we conclude that the assumptions for our OLS model are met.
+
+## SES Status
+
+```{r, fig.height=5, fig.width=7}
+get_calibration_plot <- function(SES, model) {
+  ses.pred <- fitted(ses_model)
+  pred_prob <- bind_cols("prob_SES"=ses.pred[,SES], "SES_factor"=els_complete$SESQU_2011 )
+
+  deciles  = quantile(pred_prob$prob_SES, seq(0, 1, length = 11), type=5)
+  x_deciles= quantile(pred_prob$prob_SES, seq(0.05, 0.95, length = 10), type=5)
+  pred_prob %>%
+  mutate(
+    bin = case_when(
+    prob_SES <= deciles[2] ~ 0.1,
+    prob_SES <= deciles[3] ~ 0.2,
+    prob_SES <= deciles[4] ~ 0.3,
+    prob_SES <= deciles[5] ~ 0.4,
+    prob_SES <= deciles[6] ~ 0.5,
+    prob_SES <= deciles[7] ~ 0.6,
+    prob_SES <= deciles[8] ~ 0.7,
+    prob_SES <= deciles[9] ~ 0.8,
+    prob_SES <= deciles[10] ~ 0.9,
+    prob_SES <= deciles[11] ~ 1)
+  ) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_true_prop = mean(SES_factor==SES),
+    avg_pred_prob = mean(prob_SES),
+    conf_diff =1.96*sqrt(avg_true_prop * (1-avg_true_prop)/n())
+  ) %>% ggplot(aes(y=avg_true_prop, x=x_deciles)) +
+    geom_line() +
+    # geom_bar() +
+    geom_errorbar(aes(ymin=avg_true_prop-conf_diff, ymax=avg_true_prop+conf_diff)) +
+    geom_abline(aes(intercept=0, slope=1), color="red") +
+    theme(legend.position="none")
+
+  # http://www.sthda.com/english/wiki/ggplot2-error-bars-quick-start-guide-r-software-and-data-visualization
+}
+
+ses_1_plot <- get_calibration_plot(1)
+ses_2_plot <- get_calibration_plot(2)
+ses_3_plot <- get_calibration_plot(3)
+ses_4_plot <- get_calibration_plot(4)
+
+
+# white_cal_plot + labs(title="Decile Calibration Plot for Race = White", x="Average Predicted Probability", y="Observed Frequency")
+# black_cal_plot + labs(title="Decile Calibration Plot for Race = Black", x="Average Predicted Probability", y="Observed Frequency")
+# hisp_cal_plot + labs(title="Decile Calibration Plot for Race = White Hispanic", x="Average Predicted Probability", y="Observed Frequency")
+# other_cal_plot + labs(title="Decile Calibration Plot for Race = Other", x="Average Predicted Probability", y="Observed Frequency")
+layout(matrix(c(1, 2), nrow=2, ncol=1), heights=c(1,8))
+
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Decile Calibration Plots (One vs All)")
+
+grid.arrange(arrangeGrob(
+ses_1_plot + labs(title="1st SES Quantile", x="", y="Observed Frequency"),
+ses_2_plot + labs(title="2nd SES Quantile", x="", y=""),
+ses_3_plot + labs(title="3rd SES Quantile", x="Average Predicted Probability", y="Observed Frequency"),
+ses_4_plot + labs(title="4th SES Quantile", x="Average Predicted Probability", y=""),
+  ncol=2,
+  nrow=2), top=textGrob("Decile Calibration Plots (One vs All)",gp=gpar(fontsize=14,font=3)))
+
+```
+
+```{r, eval=F}
+# proportional odds test
+mlm <- nnet::multinom(SESQU_2011 ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
+G <- -2 * (logLik(ses_model)[1] - logLik(mlm)[1])
+pchisq(G, df = length(ses_model$zeta) - 1, lower.tail = FALSE)
+
+
+ses_model_lm = lm(SESQU_2011~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els_complete)
+
+vif(ses_model_lm)
+
+poTest(ses_model)
+brant(ses_model)
+
+
+# model.lm=ses_model
+# vif_plot <- ggplot(tidy(vif(model.lm)) %>%
+#                mutate(var.num = row_number())) +
+#         geom_point(aes(x = var.num, y = x)) +
+#         geom_hline(yintercept = 10, color = "red") +
+#         labs(x = "Variable Number",
+#              y = "Vif Values")
+
+```
+
+Since ordinal logistic regression has a categorical dependent variable, we first fit a linear model with the numeric version of the dependent variable of SES quantile. Then, after performing VIF, we find that there is no multicollinearity, as all of the VIF are under 10.
+
+The proportional odds assumption is violated for 5 variables in the model. However, since we are performing only inference and since the calibration plots are relatively reasonable in comparison to the ideal line, this should not be a large concern.
+
+As seen above, we created calibration plots for all four SES quantiles using a One vs All classification, and it seems that the models generally perform well, which gives us more confidence in our results.
+
+## Education Attainment
+
+### Odds of Dropping Out of High School
+
+```{r fig.height = 3.25, fig.width = 7}
+#http://finzi.psych.upenn.edu/library/broom/html/augment.glm.html
+full_model_aug <- broom::augment(ed_model, type.predict = 'response', 
+                            type.residuals = 'deviance')
+deciles  = quantile(full_model_aug$.fitted, seq(0, 1, length = 11), type=5)
+  x_deciles= quantile(full_model_aug$.fitted, seq(0.05, 0.95, length = 10), type=5)
+  full_model_aug %>%
+    mutate(
+    bin = case_when(
+    .fitted <= deciles[2] ~ 0.1,
+    .fitted <= deciles[3] ~ 0.2,
+    .fitted <= deciles[4] ~ 0.3,
+    .fitted <= deciles[5] ~ 0.4,
+    .fitted <= deciles[6] ~ 0.5,
+    .fitted <= deciles[7] ~ 0.6,
+    .fitted <= deciles[8] ~ 0.7,
+    .fitted <= deciles[9] ~ 0.8,
+    .fitted <= deciles[10] ~ 0.9,
+    .fitted <= deciles[11] ~ 1)
+  ) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_true_prop = mean(as.numeric(DROPPED_OUT)),
+    avg_pred_prob = mean(.fitted),
+    conf_diff =1.96*sqrt(avg_true_prop * (1-avg_true_prop)/n())
+  ) %>% ggplot(aes(y=avg_true_prop, x=x_deciles)) +
+    geom_line() +
+    # geom_bar() +
+    geom_errorbar(aes(ymin=avg_true_prop-conf_diff, ymax=avg_true_prop+conf_diff)) +
+    geom_abline(aes(intercept=0, slope=1), color="red") +
+    theme(legend.position="none") + labs(title = "Dropping Out of HS - Decile Calibration Plot", x = "Average Predicted Probability", y = "Observed Frequency")
+
+```
+
+The calibration plot shows that the observed frequencies are pretty similar to the average predicted probabilities, with a small blip around an average predicted probability of 0.16. However, the overall trend is very similar to the ideal line.
+
+```{r, eval=F}
+vif(ed_model)
+```
+
+All VIF of the variables are less than 10, so there are no issues with multicollinearity in our model.
+
+### Odds of Attaining a Bachelor's Degree
+
+```{r fig.height = 3.25, fig.width = 7}
+#http://finzi.psych.upenn.edu/library/broom/html/augment.glm.html
+full_model_aug <- broom::augment(ed_model_bachelors, type.predict = 'response', 
+                            type.residuals = 'deviance')
+deciles  = quantile(full_model_aug$.fitted, seq(0, 1, length = 11), type=5)
+  x_deciles= quantile(full_model_aug$.fitted, seq(0.05, 0.95, length = 10), type=5)
+  full_model_aug %>%
+    mutate(
+    bin = case_when(
+    .fitted <= deciles[2] ~ 0.1,
+    .fitted <= deciles[3] ~ 0.2,
+    .fitted <= deciles[4] ~ 0.3,
+    .fitted <= deciles[5] ~ 0.4,
+    .fitted <= deciles[6] ~ 0.5,
+    .fitted <= deciles[7] ~ 0.6,
+    .fitted <= deciles[8] ~ 0.7,
+    .fitted <= deciles[9] ~ 0.8,
+    .fitted <= deciles[10] ~ 0.9,
+    .fitted <= deciles[11] ~ 1)
+  ) %>%
+  group_by(bin) %>%
+  summarise(
+    avg_true_prop = mean(as.numeric(ED_ATNMT_BACHELORS)),
+    avg_pred_prob = mean(.fitted),
+    conf_diff =1.96*sqrt(avg_true_prop * (1-avg_true_prop)/n())
+  ) %>% ggplot(aes(y=avg_true_prop, x=x_deciles)) +
+    geom_line() +
+    # geom_bar() +
+    geom_errorbar(aes(ymin=avg_true_prop-conf_diff, ymax=avg_true_prop+conf_diff)) +
+    geom_abline(aes(intercept=0, slope=1), color="red") +
+    theme(legend.position="none") + labs(title = "Attaining Bachelor's - Decile Calibration Plot", x = "Average Predicted Probability", y = "Observed Frequency")
+
+```
+
+Although there are some deviances from the ideal line for the predicted probabilities greater than around 0.5, the line observed frequencies are still relatively close to the average predicted probabilities.
+
+```{r, eval=F}
+vif(ed_model_bachelors)
+```
+
+All VIF of the variables are less than 10, so there are no issues with multicollinearity in our model.
+
+## Sensitivity Analysis Without Imputed Data
+
+```{r}
+test_model_both = lm(TEST_COMP ~  RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS+ PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els)
+test_model_summary = summary(test_model_both)
+
+get_results_table(test_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Sensitivity Results: OLS Model for Test Composite Score")
+
+```
+
+
+\newpage
+
+```{r}
+ed_model <- glm(DROPPED_OUT ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, family="binomial")
+
+ed_model_summary = summary(ed_model)
+
+get_results_table_logistic(ed_model_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Sensitivity Results: Logistic Regression for Odds of Dropping Out of HS")
+
+```
+
+\newpage
+
+```{r}
+
+ed_model_bachelors <- glm(ED_ATNMT_BACHELORS ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE +  MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS  + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, family = "binomial")
+
+ed_model_bachelors_summary = summary(ed_model_bachelors)
+
+get_results_table_logistic(ed_model_bachelors_summary, c("Intercept", "Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes","% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space"), "Sensitivity Results: Logistic Regression for Odds of Attaining Bachelor's")
+```
+
+\newpage
+
+```{r}
+# https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+ses_model = polr(factor(SESQU_2011) ~ RACE + FAM_COMP + SES + PT_ED_YEARS  + PT_PUSH_YEARS  + COMP_AND_INTERNET + SCHOOL_TYPE + MATH_PUSH_YEARS + ENGLISH_PUSH_YEARS + PERC_SOPH_COLLEGE_PREP + LOWEST_TEACHER_SALARY_THOUSANDS +
+                       FREE_LUNCH_MAJ*LH_LACK_OF_SPACE + LH_POOR_BUILDINGS+ LH_POOR_HEATING_AIR_LIGHT + LH_LACK_TEXT + LH_POOR_FACILITIES + LH_POOR_TECH, data = els, Hess = TRUE)
+ses_model_summary = summary(ses_model)
+# ctable <- coef(ses_model_summary)
+# p <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+# is_sig <- p <= 0.05
+# (ctable <- cbind(ctable, "exp(coef)" = exp(ctable[,"Value"]), "p value" = p, "sig"=is_sig))
+
+get_results_table_ordinal(ses_model_summary, c("Race=API", "Race=Black", "Race=Hispanic", "Race=White", "Has Two Parents", "SES", "# Years Parents Education", "# Years Education Parents Push", "Has Computer and Internet", "Is Public School", "# Years Education Math Teacher Pushes", "# Years Education English Teacher Pushes", "% Sophomores in College Prep", "Lowest Teacher Salary (thousands)", "Majority Students Have Free Lunch","LH by Lack of Space", "LH by Poor Building Conditions", "LH by Poor Heating/Air/Light", "LH by Lack of Text/Supplies", "LH by Poor Facilities", "LH by Poor Technology", "Majority Free Lunch:LH by Lack of Space", "Intercept (SES Quartile <= 1)", "Intercept (SES Quartile <= 2)", "Intercept (SES Quartile <= 3)"), "Sensitivity Results: Ordinal Logistic Regression for SES Status")
+```
+
+
+
+
+\newpage
+
+## Sources
+[1] <https://www.npr.org/sections/ed/2016/04/25/468157856/can-more-money-fix-americas-schools>
+
+[2] <https://equitablegrowth.org/can-school-finance-reforms-improve-student-achievement/>
+
+[3] <https://www.nber.org/papers/w20847>
+
+[4] <https://fordhaminstitute.org/national/commentary/education-longitudinal-study-2002>
+
+[5] <https://hub.jhu.edu/magazine/2016/winter/coleman-report-public-Education/>
+
